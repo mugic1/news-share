@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast File Transfer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h2 { color: #333; margin-bottom: 20px; }
+        input[type="file"] { display: none; }
+        .file-label {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            margin-bottom: 20px;
+            transition: background 0.3s;
+        }
+        .file-label:hover { background-color: #0056b3; }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+        button:disabled { background-color: #ccc; }
+        #status { margin-top: 15px; font-weight: bold; color: #555; }
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+        .progress {
+            width: 0%;
+            height: 10px;
+            background-color: #28a745;
+            border-radius: 5px;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Local File Share</h2>
+    <label for="fileInput" class="file-label">Choose File</label>
+    <input type="file" id="fileInput">
+    <div id="fileName">No file chosen</div>
+    <br>
+    <button id="sendBtn" disabled>Send File</button>
+    
+    <div class="progress-bar" id="progressBar">
+        <div class="progress" id="progress"></div>
+    </div>
+    <div id="status">Ready to connect...</div>
+</div>
+
+<script>
+    // WebRTC configuration (No external server needed for same network signaling if manual)
+    const peerConnection = new RTCPeerConnection();
+    let dataChannel;
+    let receivedChunks = [];
+    let fileReader;
+
+    const fileInput = document.getElementById('fileInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusDiv = document.getElementById('status');
+    const fileNameDiv = document.getElementById('fileName');
+    const progressBar = document.getElementById('progressBar');
+    const progress = document.getElementById('progress');
+
+    // UI Updates
+    fileInput.onchange = () => {
+        if (fileInput.files.length > 0) {
+            fileNameDiv.innerText = fileInput.files[0].name;
+            sendBtn.disabled = false;
+        }
+    };
+
+    // Setup Data Channel for Sending
+    dataChannel = peerConnection.createDataChannel("fileTransfer");
+    dataChannel.binaryType = 'arraybuffer';
+
+    dataChannel.onopen = () => statusDiv.innerText = "Connected! Ready to send.";
+    dataChannel.onclose = () => statusDiv.innerText = "Disconnected.";
+
+    // Handling Incoming Data (For the receiving device)
+    peerConnection.ondatachannel = (event) => {
+        const receiveChannel = event.channel;
+        receiveChannel.binaryType = 'arraybuffer';
+        
+        receiveChannel.onmessage = (e) => {
+            if (typeof e.data === 'string') {
+                // First message contains file metadata
+                const meta = JSON.parse(e.data);
+                window.incomingFileInfo = meta;
+                receivedChunks = [];
+                statusDiv.innerText = `Receiving: ${meta.name}...`;
+                progressBar.style.display = 'block';
+            } else {
+                // Binary chunks
+                receivedChunks.push(e.data);
+                let currentSize = receivedChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
+                let percent = (currentSize / window.incomingFileInfo.size) * 100;
+                progress.style.width = percent + '%';
+
+                if (currentSize === window.incomingFileInfo.size) {
+                    // File download when complete
+                    const blob = new Blob(receivedChunks);
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = window.incomingFileInfo.name;
+                    a.click();
+                    statusDiv.innerText = "File Received successfully!";
+                    progressBar.style.display = 'none';
+                }
+            }
+        };
+    };
+
+    // Send File Logic
+    sendBtn.onclick = () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        progressBar.style.display = 'block';
+        statusDiv.innerText = "Sending...";
+
+        // Send metadata first
+        dataChannel.send(JSON.stringify({ name: file.name, size: file.size }));
+
+        const chunkSize = 16384; // 16KB chunks for speed & stability
+        fileReader = new FileReader();
+        let offset = 0;
+
+        fileReader.onload = (e) => {
+            dataChannel.send(e.target.result);
+            offset += e.target.result.byteLength;
+            
+            let percent = (offset / file.size) * 100;
+            progress.style.width = percent + '%';
+
+            if (offset < file.size) {
+                readNextChunk();
+            } else {
+                statusDiv.innerText = "Sent successfully!";
+                progressBar.style.display = 'none';
+            }
+        };
+
+        const readNextChunk = () => {
+            const slice = file.slice(offset, offset + chunkSize);
+            fileReader.readAsArrayBuffer(slice);
+        };
+
+        readNextChunk();
+    };
+
+    // Simple auto-signaling mechanism for same-page testing
+    // Note: Production me dono devices ko connect karne ke liye ek tiny Signaling Server (Node.js/Socket.io) lagta hai.
+    peerConnection.onicecandidate = (e) => {
+        if (e.candidate == null) {
+            // connection details generated
+            console.log(JSON.stringify(peerConnection.localDescription));
+        }
+    };
+
+    // Connection setup for standalone use (Manual Signaling)
+    async function createOffer() {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        console.log("Copy this offer to the other device:", JSON.stringify(offer));
+    }
+</script>
+
+</body>
+</html>
