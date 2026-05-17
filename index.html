@@ -3,200 +3,1823 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast File Transfer</title>
+    <title>QuickShare - Device to Device File Transfer</title>
+
+    <!-- QR Code Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js">
+    </script>
+
     <style>
+        :root {
+            --bg: #0f0f14;
+            --surface: #1a1a24;
+            --surface2: #222230;
+            --border: #2a2a3a;
+            --primary: #6c5ce7;
+            --primary-glow: #8b7cf0;
+            --accent: #00d2a0;
+            --accent2: #ff6b6b;
+            --text: #e0e0e8;
+            --text2: #a0a0b0;
+            --text3: #707080;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --success: #2ed573;
+            --radius: 14px;
+            --radius-sm: 10px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background-image:
+                radial-gradient(ellipse at 30% 20%, rgba(108, 92, 231, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 70%, rgba(0, 210, 160, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.01) 0%, transparent 80%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 580px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 28px 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 180px;
+            height: 180px;
+            background: var(--primary);
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+        .header .logo {
+            font-size: 2rem;
+            margin-bottom: 2px;
+        }
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #e0e0e8, #c0c0d0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header .subtitle {
+            font-size: 0.8rem;
+            color: var(--text3);
+            margin-top: 2px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            background: var(--surface2);
+            border-radius: var(--radius);
+            padding: 5px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 11px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: var(--transition);
+            background: transparent;
+            color: var(--text2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.35);
+        }
+        .tab-btn:hover:not(.active) {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .tab-icon {
+            font-size: 1.1rem;
+        }
+
+        /* Panels */
+        .tab-panel {
+            display: none;
+            animation: fadeSlideIn 0.3s ease;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Role Selector */
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .role-btn {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            background: var(--surface2);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            text-align: center;
+        }
+        .role-btn:hover {
+            border-color: var(--primary-glow);
+            background: rgba(108, 92, 231, 0.06);
+        }
+        .role-btn.selected {
+            border-color: var(--primary);
+            background: rgba(108, 92, 231, 0.12);
+            box-shadow: 0 0 20px rgba(108, 92, 231, 0.15);
+            color: #fff;
+        }
+        .role-btn .role-icon {
+            font-size: 1.6rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 16px;
+            background: var(--surface2);
+            position: relative;
+        }
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--primary-glow);
+            background: rgba(108, 92, 231, 0.06);
+        }
+        .drop-zone .drop-icon {
+            font-size: 2.8rem;
+            margin-bottom: 8px;
+        }
+        .drop-zone p {
+            color: var(--text2);
+            font-size: 0.85rem;
+        }
+        .drop-zone .file-types {
+            color: var(--text3);
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* File List */
+        .file-list {
+            margin-bottom: 14px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--surface2);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+        }
+        .file-item .file-icon {
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .file-item .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-item .file-name {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-item .file-size {
+            font-size: 0.7rem;
+            color: var(--text3);
+        }
+        .file-item .remove-file {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+        .file-item .remove-file:hover {
+            background: rgba(255, 71, 87, 0.15);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 22px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            justify-content: center;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            width: 100%;
+            box-shadow: 0 4px 18px rgba(108, 92, 231, 0.3);
+        }
+        .btn-primary:hover {
+            background: var(--primary-glow);
+            box-shadow: 0 6px 24px rgba(108, 92, 231, 0.45);
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            color: var(--text);
+            width: 100%;
+        }
+        .btn-outline:hover {
+            border-color: var(--primary-glow);
+            background: rgba(108, 92, 231, 0.05);
+        }
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 0.78rem;
+            border-radius: 8px;
+        }
+        .btn-accent {
+            background: var(--accent);
+            color: #000;
+            font-weight: 700;
+        }
+        .btn-accent:hover {
+            filter: brightness(1.15);
+        }
+        .btn-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Connection Area */
+        .connection-area {
+            background: var(--surface2);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+        }
+        .connection-area h3 {
+            font-size: 0.85rem;
+            color: var(--text2);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sdp-textarea {
+            width: 100%;
+            height: 80px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            padding: 10px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.7rem;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+        .sdp-textarea::placeholder {
+            color: var(--text3);
+        }
+        .qr-container {
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-align: center;
-            width: 350px;
-        }
-        h2 { color: #333; margin-bottom: 20px; }
-        input[type="file"] { display: none; }
-        .file-label {
-            background-color: #007bff;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border-radius: var(--radius-sm);
             display: inline-block;
-            margin-bottom: 20px;
-            transition: background 0.3s;
         }
-        .file-label:hover { background-color: #0056b3; }
-        button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 20px;
+        .qr-wrapper {
+            text-align: center;
+            margin: 8px 0;
+        }
+        .qr-wrapper canvas {
             border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
         }
-        button:disabled { background-color: #ccc; }
-        #status { margin-top: 15px; font-weight: bold; color: #555; }
-        .progress-bar {
+        .qr-label {
+            font-size: 0.7rem;
+            color: var(--text3);
+            margin-top: 4px;
+        }
+
+        /* Scanner */
+        .scanner-container {
+            position: relative;
             width: 100%;
-            background-color: #e0e0e0;
-            border-radius: 5px;
-            margin-top: 15px;
+            max-width: 320px;
+            margin: 10px auto;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 2px solid var(--border);
             display: none;
         }
-        .progress {
+        .scanner-container.active {
+            display: block;
+        }
+        .scanner-container video {
+            width: 100%;
+            display: block;
+        }
+        .scanner-container .scan-overlay {
+            position: absolute;
+            inset: 0;
+            border: 2px dashed var(--accent);
+            border-radius: var(--radius-sm);
+            pointer-events: none;
+            box-shadow: inset 0 0 40px rgba(0, 210, 160, 0.2);
+        }
+
+        /* Progress */
+        .progress-container {
+            margin: 14px 0;
+            display: none;
+        }
+        .progress-container.active {
+            display: block;
+        }
+        .progress-bar-outer {
+            width: 100%;
+            height: 8px;
+            background: var(--surface2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 6px 0;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            transition: width 0.3s ease;
             width: 0%;
-            height: 10px;
-            background-color: #28a745;
-            border-radius: 5px;
-            transition: width 0.1s;
+        }
+        .progress-text {
+            font-size: 0.78rem;
+            color: var(--text2);
+            text-align: center;
+        }
+        .transfer-speed {
+            font-size: 0.7rem;
+            color: var(--text3);
+            text-align: center;
+        }
+
+        /* Status */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 4px 0;
+        }
+        .status-idle {
+            background: rgba(160, 160, 176, 0.15);
+            color: var(--text2);
+        }
+        .status-connecting {
+            background: rgba(255, 165, 2, 0.2);
+            color: var(--warning);
+            animation: pulse 1.5s infinite;
+        }
+        .status-connected {
+            background: rgba(46, 213, 115, 0.2);
+            color: var(--success);
+        }
+        .status-error {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface2);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            z-index: 1000;
+            animation: toastIn 0.35s ease, toastOut 0.35s ease 2.5s forwards;
+            pointer-events: none;
+        }
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+        }
+
+        /* Info banner */
+        .info-banner {
+            background: rgba(108, 92, 231, 0.1);
+            border: 1px solid rgba(108, 92, 231, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            color: var(--text2);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .info-banner .info-icon {
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container {
+                padding: 18px 12px;
+                border-radius: 16px;
+            }
+            .tab-btn {
+                font-size: 0.78rem;
+                padding: 9px 10px;
+            }
+            .role-btn {
+                padding: 10px;
+                font-size: 0.8rem;
+            }
+            .header h1 {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Local File Share</h2>
-    <label for="fileInput" class="file-label">Choose File</label>
-    <input type="file" id="fileInput">
-    <div id="fileName">No file chosen</div>
-    <br>
-    <button id="sendBtn" disabled>Send File</button>
-    
-    <div class="progress-bar" id="progressBar">
-        <div class="progress" id="progress"></div>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">⚡</div>
+            <h1>QuickShare</h1>
+            <p class="subtitle">Fast device-to-device file transfer</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="wifi">
+                <span class="tab-icon">📶</span> WiFi Direct
+            </button>
+            <button class="tab-btn" data-tab="bluetooth">
+                <span class="tab-icon">🔵</span> Bluetooth
+            </button>
+        </div>
+
+        <!-- ==================== WiFi Panel ==================== -->
+        <div class="tab-panel active" id="panel-wifi">
+            <!-- Info -->
+            <div class="info-banner">
+                <span class="info-icon">💡</span>
+                <span>Uses WebRTC P2P. Exchange connection info via copy-paste or QR code. Works on same network or via internet.</span>
+            </div>
+
+            <!-- Role -->
+            <div class="role-selector" id="wifi-role-selector">
+                <button class="role-btn selected" data-role="sender">
+                    <span class="role-icon">📤</span> I'm Sending
+                </button>
+                <button class="role-btn" data-role="receiver">
+                    <span class="role-icon">📥</span> I'm Receiving
+                </button>
+            </div>
+
+            <!-- Drop Zone (Sender) -->
+            <div class="drop-zone" id="wifi-drop-zone">
+                <span class="drop-icon">📁</span>
+                <p>Tap to select files or drag & drop</p>
+                <p class="file-types">All file types supported • Max 500MB per file</p>
+                <input type="file" id="wifi-file-input" multiple>
+            </div>
+
+            <!-- File List -->
+            <div class="file-list" id="wifi-file-list"></div>
+
+            <!-- Connection Area -->
+            <div class="connection-area" id="wifi-connection-area">
+                <h3>🔗 Connection Info Exchange</h3>
+                <p style="font-size:0.75rem;color:var(--text3);margin-bottom:8px;" id="wifi-conn-instructions">
+                    Generate your connection info and share it with the other device.
+                </p>
+                <textarea class="sdp-textarea" id="wifi-sdp-input"
+            placeholder="Paste the other device's connection info here..."></textarea>
+            <div class="btn-row">
+                <button class="btn btn-outline btn-sm" id="wifi-paste-btn">📋 Paste</button>
+                <button class="btn btn-outline btn-sm" id="wifi-scan-qr-btn">📷 Scan QR</button>
+            </div>
+            <!-- QR Display -->
+            <div class="qr-wrapper" id="wifi-qr-display" style="display:none;">
+                <div class="qr-container" id="wifi-qr-container"></div>
+                <p class="qr-label">Scan this QR code with the other device</p>
+            </div>
+            <!-- Scanner -->
+            <div class="scanner-container" id="wifi-scanner">
+                <video id="wifi-scanner-video" autoplay playsinline muted></video>
+                <div class="scan-overlay"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" id="wifi-stop-scan" style="display:none;">⏹ Stop Scanner</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <button class="btn btn-primary" id="wifi-action-btn" disabled>
+            📤 Select Files &amp; Generate Connection Info
+        </button>
+
+        <!-- Progress -->
+        <div class="progress-container" id="wifi-progress">
+            <p class="progress-text" id="wifi-progress-text">Transferring...</p>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="wifi-progress-bar"></div>
+            </div>
+            <p class="transfer-speed" id="wifi-transfer-speed"></p>
+        </div>
+
+        <!-- Status -->
+        <div style="text-align:center;margin-top:8px;">
+            <span class="status-badge status-idle" id="wifi-status">Idle</span>
+        </div>
     </div>
-    <div id="status">Ready to connect...</div>
+
+    <!-- ==================== Bluetooth Panel ==================== -->
+    <div class="tab-panel" id="panel-bluetooth">
+        <div class="info-banner">
+            <span class="info-icon">⚠️</span>
+            <span>Web Bluetooth works best with dedicated BLE peripherals. For browser-to-browser transfer, use <strong>WiFi Direct</strong> above. Requires Chrome/Edge.</span>
+        </div>
+
+        <div class="role-selector" id="bt-role-selector">
+            <button class="role-btn selected" data-role="sender">
+                <span class="role-icon">📤</span> Send File
+            </button>
+            <button class="role-btn" data-role="receiver">
+                <span class="role-icon">📥</span> Receive (Peripheral)
+            </button>
+        </div>
+
+        <div class="drop-zone" id="bt-drop-zone">
+            <span class="drop-icon">📁</span>
+            <p>Tap to select a file</p>
+            <p class="file-types">Small files recommended (BLE is slow for large files)</p>
+            <input type="file" id="bt-file-input">
+        </div>
+
+        <div class="file-list" id="bt-file-list"></div>
+
+        <button class="btn btn-outline" id="bt-scan-btn" style="margin-bottom:10px;">
+            🔍 Scan for Bluetooth Devices
+        </button>
+
+        <div id="bt-device-list" style="margin-bottom:10px;"></div>
+
+        <button class="btn btn-primary" id="bt-send-btn" disabled>
+            📤 Connect &amp; Send
+        </button>
+
+        <div class="progress-container" id="bt-progress">
+            <p class="progress-text" id="bt-progress-text">Sending...</p>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="bt-progress-bar"></div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:8px;">
+            <span class="status-badge status-idle" id="bt-status">Idle</span>
+        </div>
+    </div>
 </div>
 
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
 <script>
-    // WebRTC configuration (No external server needed for same network signaling if manual)
-    const peerConnection = new RTCPeerConnection();
-    let dataChannel;
-    let receivedChunks = [];
-    let fileReader;
+    (function() {
+        // ==================== GLOBALS ====================
+        let currentTab = 'wifi';
+        let wifiRole = 'sender';
+        let btRole = 'sender';
+        let wifiFiles = [];
+        let btFile = null;
 
-    const fileInput = document.getElementById('fileInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const statusDiv = document.getElementById('status');
-    const fileNameDiv = document.getElementById('fileName');
-    const progressBar = document.getElementById('progressBar');
-    const progress = document.getElementById('progress');
+        // WebRTC globals
+        let peerConnection = null;
+        let dataChannel = null;
+        let receivedFileChunks = {};
+        let receivedFileMeta = {};
+        let currentTransferFileIndex = 0;
+        let transferStartTime = 0;
+        let totalBytesTransferred = 0;
+        let totalBytesToTransfer = 0;
+        let wifiConnected = false;
+        let sdpOffer = null;
+        let sdpAnswer = null;
+        let isGeneratingOffer = false;
 
-    // UI Updates
-    fileInput.onchange = () => {
-        if (fileInput.files.length > 0) {
-            fileNameDiv.innerText = fileInput.files[0].name;
-            sendBtn.disabled = false;
+        // BLE globals
+        let bleDevice = null;
+        let bleServer = null;
+        let bleCharacteristic = null;
+        const BLE_SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+        const BLE_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';
+
+        // Scanner
+        let scannerStream = null;
+        let scannerActive = false;
+        let scannerAnimationId = null;
+
+        // ==================== DOM REFS ====================
+        const $ = (sel) => document.querySelector(sel);
+        const $$ = (sel) => document.querySelectorAll(sel);
+
+        // WiFi refs
+        const wifiDropZone = $('#wifi-drop-zone');
+        const wifiFileInput = $('#wifi-file-input');
+        const wifiFileList = $('#wifi-file-list');
+        const wifiActionBtn = $('#wifi-action-btn');
+        const wifiStatus = $('#wifi-status');
+        const wifiProgress = $('#wifi-progress');
+        const wifiProgressBar = $('#wifi-progress-bar');
+        const wifiProgressText = $('#wifi-progress-text');
+        const wifiTransferSpeed = $('#wifi-transfer-speed');
+        const wifiSdpInput = $('#wifi-sdp-input');
+        const wifiQrDisplay = $('#wifi-qr-display');
+        const wifiQrContainer = $('#wifi-qr-container');
+        const wifiScanner = $('#wifi-scanner');
+        const wifiScannerVideo = $('#wifi-scanner-video');
+        const wifiStopScanBtn = $('#wifi-stop-scan');
+        const wifiConnInstructions = $('#wifi-conn-instructions');
+
+        // BT refs
+        const btDropZone = $('#bt-drop-zone');
+        const btFileInput = $('#bt-file-input');
+        const btFileList = $('#bt-file-list');
+        const btScanBtn = $('#bt-scan-btn');
+        const btSendBtn = $('#bt-send-btn');
+        const btStatus = $('#bt-status');
+        const btProgress = $('#bt-progress');
+        const btProgressBar = $('#bt-progress-bar');
+        const btProgressText = $('#bt-progress-text');
+        const btDeviceList = $('#bt-device-list');
+
+        // ==================== UTILS ====================
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-    };
 
-    // Setup Data Channel for Sending
-    dataChannel = peerConnection.createDataChannel("fileTransfer");
-    dataChannel.binaryType = 'arraybuffer';
+        function formatSpeed(bytesPerSec) {
+            return formatBytes(Math.round(bytesPerSec)) + '/s';
+        }
 
-    dataChannel.onopen = () => statusDiv.innerText = "Connected! Ready to send.";
-    dataChannel.onclose = () => statusDiv.innerText = "Disconnected.";
+        function showToast(message, duration = 2800) {
+            const container = $('#toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, duration + 400);
+        }
 
-    // Handling Incoming Data (For the receiving device)
-    peerConnection.ondatachannel = (event) => {
-        const receiveChannel = event.channel;
-        receiveChannel.binaryType = 'arraybuffer';
-        
-        receiveChannel.onmessage = (e) => {
-            if (typeof e.data === 'string') {
-                // First message contains file metadata
-                const meta = JSON.parse(e.data);
-                window.incomingFileInfo = meta;
-                receivedChunks = [];
-                statusDiv.innerText = `Receiving: ${meta.name}...`;
-                progressBar.style.display = 'block';
+        function setStatus(element, text, type) {
+            element.textContent = text;
+            element.className = 'status-badge status-' + type;
+        }
+
+        function getFileIcon(name) {
+            const ext = name.split('.').pop().toLowerCase();
+            const icons = {
+                pdf: '📄',
+                doc: '📝',
+                docx: '📝',
+                xls: '📊',
+                xlsx: '📊',
+                ppt: '📑',
+                pptx: '📑',
+                jpg: '🖼️',
+                jpeg: '🖼️',
+                png: '🖼️',
+                gif: '🖼️',
+                webp: '🖼️',
+                svg: '🖼️',
+                mp4: '🎬',
+                mov: '🎬',
+                avi: '🎬',
+                mkv: '🎬',
+                mp3: '🎵',
+                wav: '🎵',
+                flac: '🎵',
+                zip: '📦',
+                rar: '📦',
+                '7z': '📦',
+                tar: '📦',
+                gz: '📦',
+                exe: '⚙️',
+                apk: '📱',
+                html: '🌐',
+                css: '🎨',
+                js: '💻',
+                py: '🐍',
+                txt: '📃',
+                json: '📋',
+            };
+            return icons[ext] || '📎';
+        }
+
+        // ==================== TAB SWITCHING ====================
+        $$('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                currentTab = tab;
+                $$('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                $$('.tab-panel').forEach(p => p.classList.remove('active'));
+                $('#panel-' + tab).classList.add('active');
+                stopScanner();
+            });
+        });
+
+        // ==================== ROLE SELECTION ====================
+        // WiFi role
+        $$('#wifi-role-selector .role-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('#wifi-role-selector .role-btn').forEach(b => b.classList.remove(
+                    'selected'));
+                btn.classList.add('selected');
+                wifiRole = btn.dataset.role;
+                updateWifiUI();
+                resetWifiConnection();
+            });
+        });
+
+        // BT role
+        $$('#bt-role-selector .role-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('#bt-role-selector .role-btn').forEach(b => b.classList.remove(
+                'selected'));
+                btn.classList.add('selected');
+                btRole = btn.dataset.role;
+                updateBtUI();
+            });
+        });
+
+        function updateWifiUI() {
+            if (wifiRole === 'sender') {
+                wifiDropZone.style.display = '';
+                wifiActionBtn.textContent = wifiFiles.length > 0 ?
+                    '📤 Generate Connection Info & Send' :
+                    '📤 Select Files & Generate Connection Info';
+                wifiActionBtn.disabled = wifiFiles.length === 0;
+                wifiConnInstructions.textContent =
+                    'Select files, then generate connection info to share with the receiver.';
             } else {
-                // Binary chunks
-                receivedChunks.push(e.data);
-                let currentSize = receivedChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-                let percent = (currentSize / window.incomingFileInfo.size) * 100;
-                progress.style.width = percent + '%';
+                wifiDropZone.style.display = 'none';
+                wifiActionBtn.textContent = '📥 Accept Connection & Receive';
+                wifiActionBtn.disabled = false;
+                wifiConnInstructions.textContent =
+                    'Paste or scan the sender\'s connection info, then click to accept.';
+            }
+            wifiSdpInput.value = '';
+            wifiQrDisplay.style.display = 'none';
+            wifiQrContainer.innerHTML = '';
+            wifiProgress.classList.remove('active');
+            wifiProgressBar.style.width = '0%';
+            setStatus(wifiStatus, 'Idle', 'idle');
+            wifiConnected = false;
+            closePeerConnection();
+        }
 
-                if (currentSize === window.incomingFileInfo.size) {
-                    // File download when complete
-                    const blob = new Blob(receivedChunks);
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = window.incomingFileInfo.name;
-                    a.click();
-                    statusDiv.innerText = "File Received successfully!";
-                    progressBar.style.display = 'none';
+        function updateBtUI() {
+            if (btRole === 'sender') {
+                btDropZone.style.display = '';
+                btSendBtn.style.display = '';
+                btScanBtn.style.display = '';
+                btSendBtn.textContent = btFile ? '📤 Connect & Send' : '📤 Select File First';
+                btSendBtn.disabled = !btFile;
+            } else {
+                btDropZone.style.display = 'none';
+                btSendBtn.style.display = 'none';
+                btScanBtn.style.display = '';
+                btSendBtn.disabled = true;
+            }
+            btDeviceList.innerHTML = '';
+            bleDevice = null;
+            setStatus(btStatus, 'Idle', 'idle');
+            btProgress.classList.remove('active');
+        }
+
+        // ==================== FILE HANDLING - WiFi ====================
+        wifiFileInput.addEventListener('change', (e) => {
+            handleWifiFiles(e.target.files);
+        });
+
+        wifiDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            wifiDropZone.classList.add('drag-over');
+        });
+        wifiDropZone.addEventListener('dragleave', () => {
+            wifiDropZone.classList.remove('drag-over');
+        });
+        wifiDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            wifiDropZone.classList.remove('drag-over');
+            if (wifiRole === 'sender') {
+                handleWifiFiles(e.dataTransfer.files);
+            }
+        });
+        wifiDropZone.addEventListener('click', (e) => {
+            if (e.target === wifiFileInput) return;
+            if (wifiRole === 'sender') {
+                wifiFileInput.click();
+            }
+        });
+
+        function handleWifiFiles(fileList) {
+            if (wifiRole !== 'sender') return;
+            const newFiles = Array.from(fileList);
+            // Deduplicate by name+size
+            for (const f of newFiles) {
+                const exists = wifiFiles.some(ex => ex.name === f.name && ex.size === f.size);
+                if (!exists) {
+                    if (f.size > 500 * 1024 * 1024) {
+                        showToast('⚠️ File "' + f.name + '" exceeds 500MB limit and was skipped.');
+                        continue;
+                    }
+                    wifiFiles.push(f);
                 }
             }
-        };
-    };
-
-    // Send File Logic
-    sendBtn.onclick = () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        progressBar.style.display = 'block';
-        statusDiv.innerText = "Sending...";
-
-        // Send metadata first
-        dataChannel.send(JSON.stringify({ name: file.name, size: file.size }));
-
-        const chunkSize = 16384; // 16KB chunks for speed & stability
-        fileReader = new FileReader();
-        let offset = 0;
-
-        fileReader.onload = (e) => {
-            dataChannel.send(e.target.result);
-            offset += e.target.result.byteLength;
-            
-            let percent = (offset / file.size) * 100;
-            progress.style.width = percent + '%';
-
-            if (offset < file.size) {
-                readNextChunk();
-            } else {
-                statusDiv.innerText = "Sent successfully!";
-                progressBar.style.display = 'none';
-            }
-        };
-
-        const readNextChunk = () => {
-            const slice = file.slice(offset, offset + chunkSize);
-            fileReader.readAsArrayBuffer(slice);
-        };
-
-        readNextChunk();
-    };
-
-    // Simple auto-signaling mechanism for same-page testing
-    // Note: Production me dono devices ko connect karne ke liye ek tiny Signaling Server (Node.js/Socket.io) lagta hai.
-    peerConnection.onicecandidate = (e) => {
-        if (e.candidate == null) {
-            // connection details generated
-            console.log(JSON.stringify(peerConnection.localDescription));
+            renderWifiFileList();
+            wifiActionBtn.disabled = wifiFiles.length === 0;
+            wifiActionBtn.textContent = '📤 Generate Connection Info & Send (' + wifiFiles.length +
+                ' file' + (wifiFiles.length > 1 ? 's' : '') + ')';
+            wifiFileInput.value = '';
         }
-    };
 
-    // Connection setup for standalone use (Manual Signaling)
-    async function createOffer() {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        console.log("Copy this offer to the other device:", JSON.stringify(offer));
-    }
+        function renderWifiFileList() {
+            wifiFileList.innerHTML = wifiFiles.map((f, i) => `
+            <div class="file-item">
+              <span class="file-icon">${getFileIcon(f.name)}</span>
+              <div class="file-info">
+                <div class="file-name" title="${f.name}">${f.name}</div>
+                <div class="file-size">${formatBytes(f.size)}</div>
+              </div>
+              <button class="remove-file" data-index="${i}" title="Remove">✕</button>
+            </div>
+          `).join('');
+
+            wifiFileList.querySelectorAll('.remove-file').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.dataset.index);
+                    wifiFiles.splice(idx, 1);
+                    renderWifiFileList();
+                    wifiActionBtn.disabled = wifiFiles.length === 0;
+                    wifiActionBtn.textContent = wifiFiles.length > 0 ?
+                        '📤 Generate Connection Info & Send (' + wifiFiles.length +
+                        ' file' + (wifiFiles.length > 1 ? 's' : '') + ')' :
+                        '📤 Select Files & Generate Connection Info';
+                });
+            });
+        }
+
+        // ==================== FILE HANDLING - Bluetooth ====================
+        btFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                btFile = e.target.files[0];
+                if (btFile.size > 10 * 1024 * 1024) {
+                    showToast('⚠️ BLE is slow. Files >10MB may take a very long time.');
+                }
+                renderBtFileList();
+                btSendBtn.disabled = false;
+                btSendBtn.textContent = '📤 Connect & Send (' + formatBytes(btFile.size) + ')';
+            }
+        });
+
+        btDropZone.addEventListener('click', (e) => {
+            if (e.target === btFileInput) return;
+            if (btRole === 'sender') btFileInput.click();
+        });
+        btDropZone.addEventListener('dragover', (e) => { e.preventDefault();
+            btDropZone.classList.add('drag-over'); });
+        btDropZone.addEventListener('dragleave', () => btDropZone.classList.remove('drag-over'));
+        btDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            btDropZone.classList.remove('drag-over');
+            if (btRole === 'sender' && e.dataTransfer.files.length > 0) {
+                btFile = e.dataTransfer.files[0];
+                btFileInput.files = e.dataTransfer.files;
+                renderBtFileList();
+                btSendBtn.disabled = false;
+                btSendBtn.textContent = '📤 Connect & Send (' + formatBytes(btFile.size) + ')';
+            }
+        });
+
+        function renderBtFileList() {
+            if (!btFile) { btFileList.innerHTML = ''; return; }
+            btFileList.innerHTML = `
+            <div class="file-item">
+              <span class="file-icon">${getFileIcon(btFile.name)}</span>
+              <div class="file-info">
+                <div class="file-name" title="${btFile.name}">${btFile.name}</div>
+                <div class="file-size">${formatBytes(btFile.size)}</div>
+              </div>
+              <button class="remove-file" id="bt-remove-file" title="Remove">✕</button>
+            </div>
+          `;
+            $('#bt-remove-file')?.addEventListener('click', () => {
+                btFile = null;
+                btFileInput.value = '';
+                renderBtFileList();
+                btSendBtn.disabled = true;
+                btSendBtn.textContent = '📤 Select File First';
+            });
+        }
+
+        // ==================== WebRTC - CORE ====================
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+            ],
+        };
+
+        function createPeerConnection() {
+            closePeerConnection();
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            receivedFileChunks = {};
+            receivedFileMeta = {};
+            currentTransferFileIndex = 0;
+            totalBytesTransferred = 0;
+            totalBytesToTransfer = 0;
+
+            peerConnection.oniceconnectionstatechange = () => {
+                const state = peerConnection.iceConnectionState;
+                console.log('ICE state:', state);
+                if (state === 'connected' || state === 'completed') {
+                    wifiConnected = true;
+                    setStatus(wifiStatus, 'Connected ✓', 'connected');
+                } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+                    wifiConnected = false;
+                    setStatus(wifiStatus, 'Disconnected', 'error');
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                const state = peerConnection.connectionState;
+                if (state === 'connected') {
+                    wifiConnected = true;
+                }
+            };
+
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannel(dataChannel);
+            };
+
+            return peerConnection;
+        }
+
+        function setupDataChannel(channel) {
+            dataChannel = channel;
+            channel.binaryType = 'arraybuffer';
+
+            channel.onopen = () => {
+                console.log('Data channel opened');
+                wifiConnected = true;
+                setStatus(wifiStatus, 'Connected ✓ - Ready for transfer', 'connected');
+                if (wifiRole === 'sender' && wifiFiles.length > 0) {
+                    startSendingFiles();
+                }
+            };
+
+            channel.onclose = () => {
+                console.log('Data channel closed');
+                wifiConnected = false;
+            };
+
+            channel.onmessage = (event) => {
+                handleDataChannelMessage(event);
+            };
+
+            // Handle backpressure
+            channel.onbufferedamountlow = () => {
+                console.log('Buffer low, can send more');
+                if (wifiRole === 'sender' && currentTransferFileIndex < wifiFiles.length) {
+                    continueSendingFileChunk();
+                }
+            };
+        }
+
+        function handleDataChannelMessage(event) {
+            if (typeof event.data === 'string') {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'meta') {
+                        // New file incoming
+                        receivedFileMeta[msg.fileIndex] = msg;
+                        receivedFileChunks[msg.fileIndex] = [];
+                        totalBytesToTransfer += msg.size;
+                        console.log('Receiving file:', msg.name, formatBytes(msg.size));
+                        setStatus(wifiStatus, 'Receiving: ' + msg.name, 'connecting');
+                    } else if (msg.type === 'complete') {
+                        // File complete
+                        assembleAndDownload(msg.fileIndex);
+                    } else if (msg.type === 'all-done') {
+                        setStatus(wifiStatus, 'All files received! ✓', 'connected');
+                        wifiProgressBar.style.width = '100%';
+                        wifiProgressText.textContent = 'Transfer complete! ' + formatBytes(
+                            totalBytesToTransfer);
+                        const elapsed = (Date.now() - transferStartTime) / 1000;
+                        if (elapsed > 0) {
+                            wifiTransferSpeed.textContent = 'Avg speed: ' + formatSpeed(totalBytesToTransfer /
+                                elapsed);
+                        }
+                    }
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                }
+            } else if (event.data instanceof ArrayBuffer) {
+                // Binary chunk - determine which file it belongs to
+                // Simple protocol: first 2 bytes = file index, rest = data
+                const buffer = event.data;
+                if (buffer.byteLength >= 2) {
+                    const view = new DataView(buffer);
+                    const fileIndex = view.getUint16(0);
+                    const chunkData = buffer.slice(2);
+                    if (receivedFileChunks[fileIndex]) {
+                        receivedFileChunks[fileIndex].push(chunkData);
+                        totalBytesTransferred += chunkData.byteLength;
+                        updateWifiProgress();
+                    }
+                }
+            }
+        }
+
+        function assembleAndDownload(fileIndex) {
+            const meta = receivedFileMeta[fileIndex];
+            const chunks = receivedFileChunks[fileIndex];
+            if (!meta || !chunks) return;
+
+            const blob = new Blob(chunks, { type: meta.mime || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = meta.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('✅ Received: ' + meta.name);
+            console.log('File downloaded:', meta.name, formatBytes(meta.size));
+        }
+
+        function updateWifiProgress() {
+            if (totalBytesToTransfer > 0) {
+                const pct = Math.round((totalBytesTransferred / totalBytesToTransfer) * 100);
+                wifiProgressBar.style.width = pct + '%';
+                wifiProgressText.textContent =
+                    `Transferring... ${formatBytes(totalBytesTransferred)} / ${formatBytes(totalBytesToTransfer)} (${pct}%)`;
+                const elapsed = (Date.now() - transferStartTime) / 1000;
+                if (elapsed > 0.5) {
+                    wifiTransferSpeed.textContent = 'Speed: ' + formatSpeed(totalBytesTransferred / elapsed);
+                }
+            }
+        }
+
+        function closePeerConnection() {
+            if (dataChannel) {
+                try { dataChannel.close(); } catch (e) {}
+                dataChannel = null;
+            }
+            if (peerConnection) {
+                try { peerConnection.close(); } catch (e) {}
+                peerConnection = null;
+            }
+            wifiConnected = false;
+        }
+
+        function resetWifiConnection() {
+            closePeerConnection();
+            wifiSdpInput.value = '';
+            wifiQrDisplay.style.display = 'none';
+            wifiQrContainer.innerHTML = '';
+            wifiProgress.classList.remove('active');
+            wifiProgressBar.style.width = '0%';
+            wifiProgressText.textContent = 'Transferring...';
+            wifiTransferSpeed.textContent = '';
+            sdpOffer = null;
+            sdpAnswer = null;
+            isGeneratingOffer = false;
+            setStatus(wifiStatus, 'Idle', 'idle');
+        }
+
+        // ==================== WebRTC - SENDER ====================
+        async function generateOffer() {
+            if (wifiFiles.length === 0) {
+                showToast('⚠️ Please select files first.');
+                return;
+            }
+            resetWifiConnection();
+            setStatus(wifiStatus, 'Generating connection info...', 'connecting');
+            isGeneratingOffer = true;
+            wifiActionBtn.disabled = true;
+            wifiActionBtn.textContent = '⏳ Generating...';
+
+            try {
+                const pc = createPeerConnection();
+                const channel = pc.createDataChannel('filetransfer', {
+                    ordered: true,
+                });
+                setupDataChannel(channel);
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                // Wait for ICE gathering
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        pc.onicegatheringstatechange = () => {
+                            if (pc.iceGatheringState === 'complete') resolve();
+                        };
+                        // Timeout after 8 seconds
+                        setTimeout(resolve, 8000);
+                    }
+                });
+
+                sdpOffer = JSON.stringify(pc.localDescription);
+                console.log('SDP Offer length:', sdpOffer.length);
+
+                // Display for sharing
+                wifiSdpInput.value = sdpOffer;
+                displayQRCode(sdpOffer, 'wifi-qr-container');
+                wifiQrDisplay.style.display = '';
+                wifiConnInstructions.textContent =
+                    '📋 Copy this connection info or show the QR code to the receiver. Then wait for their response.';
+                setStatus(wifiStatus, 'Waiting for receiver...', 'connecting');
+                wifiActionBtn.textContent = '⏳ Waiting for receiver response...';
+                wifiActionBtn.disabled = true;
+
+                showToast('✅ Connection info generated! Share it with the receiver.');
+
+            } catch (err) {
+                console.error('Error generating offer:', err);
+                setStatus(wifiStatus, 'Error: ' + err.message, 'error');
+                showToast('❌ Error: ' + err.message);
+                wifiActionBtn.disabled = false;
+                wifiActionBtn.textContent = '📤 Generate Connection Info & Send';
+                isGeneratingOffer = false;
+            }
+        }
+
+        async function applyAnswerAndConnect() {
+            const answerStr = wifiSdpInput.value.trim();
+            if (!answerStr) {
+                showToast('⚠️ Please paste the receiver\'s response first.');
+                return;
+            }
+            if (!peerConnection) {
+                showToast('⚠️ No active connection. Please generate connection info again.');
+                return;
+            }
+
+            try {
+                setStatus(wifiStatus, 'Connecting...', 'connecting');
+                const answer = JSON.parse(answerStr);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                wifiQrDisplay.style.display = 'none';
+                wifiQrContainer.innerHTML = '';
+                wifiSdpInput.value = '';
+                wifiConnInstructions.textContent = 'Connecting to receiver...';
+                wifiActionBtn.textContent = '⏳ Connecting...';
+                wifiActionBtn.disabled = true;
+                setStatus(wifiStatus, 'Establishing P2P connection...', 'connecting');
+                showToast('🔗 Connecting to receiver...');
+            } catch (err) {
+                console.error('Error applying answer:', err);
+                setStatus(wifiStatus, 'Error: ' + err.message, 'error');
+                showToast('❌ Invalid response. Make sure you pasted the correct data.');
+                wifiActionBtn.disabled = false;
+                wifiActionBtn.textContent = '📤 Generate Connection Info & Send';
+            }
+        }
+
+        // ==================== WebRTC - RECEIVER ====================
+        async function acceptOfferAndRespond() {
+            const offerStr = wifiSdpInput.value.trim();
+            if (!offerStr) {
+                showToast('⚠️ Please paste or scan the sender\'s connection info first.');
+                return;
+            }
+
+            resetWifiConnection();
+            setStatus(wifiStatus, 'Processing connection info...', 'connecting');
+            wifiActionBtn.disabled = true;
+            wifiActionBtn.textContent = '⏳ Processing...';
+
+            try {
+                const pc = createPeerConnection();
+                const offer = JSON.parse(offerStr);
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                // Wait for ICE gathering
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        pc.onicegatheringstatechange = () => {
+                            if (pc.iceGatheringState === 'complete') resolve();
+                        };
+                        setTimeout(resolve, 8000);
+                    }
+                });
+
+                sdpAnswer = JSON.stringify(pc.localDescription);
+                wifiSdpInput.value = sdpAnswer;
+                displayQRCode(sdpAnswer, 'wifi-qr-container');
+                wifiQrDisplay.style.display = '';
+                wifiConnInstructions.textContent =
+                    '📋 Share this response with the sender (copy or let them scan the QR). Files will arrive once they connect.';
+                setStatus(wifiStatus, 'Response ready - waiting for sender', 'connecting');
+                wifiActionBtn.textContent = '⏳ Waiting for sender to connect...';
+                wifiActionBtn.disabled = true;
+                showToast('✅ Response generated! Share it with the sender.');
+
+            } catch (err) {
+                console.error('Error accepting offer:', err);
+                setStatus(wifiStatus, 'Error: ' + err.message, 'error');
+                showToast('❌ Invalid connection info. Please check and try again.');
+                wifiActionBtn.disabled = false;
+                wifiActionBtn.textContent = '📥 Accept Connection & Receive';
+            }
+        }
+
+        // ==================== FILE SENDING OVER DATA CHANNEL ====================
+        let currentFileSendIndex = 0;
+        let currentFileChunkOffset = 0;
+        let currentFileReader = null;
+        const CHUNK_SIZE = 16 * 1024; // 16KB chunks
+
+        function startSendingFiles() {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                showToast('⚠️ Data channel not open yet. Waiting...');
+                // Retry after a short delay
+                setTimeout(() => {
+                    if (dataChannel && dataChannel.readyState === 'open') {
+                        startSendingFiles();
+                    }
+                }, 1000);
+                return;
+            }
+            currentFileSendIndex = 0;
+            totalBytesToTransfer = wifiFiles.reduce((sum, f) => sum + f.size, 0);
+            totalBytesTransferred = 0;
+            transferStartTime = Date.now();
+            wifiProgress.classList.add('active');
+            wifiProgressBar.style.width = '0%';
+            wifiProgressText.textContent = 'Preparing to send...';
+            wifiTransferSpeed.textContent = '';
+            sendNextFile();
+        }
+
+        function sendNextFile() {
+            if (currentFileSendIndex >= wifiFiles.length) {
+                // All files sent
+                dataChannel.send(JSON.stringify({ type: 'all-done' }));
+                setStatus(wifiStatus, 'All files sent! ✓', 'connected');
+                wifiProgressBar.style.width = '100%';
+                wifiProgressText.textContent = 'Transfer complete! ' + formatBytes(totalBytesToTransfer);
+                const elapsed = (Date.now() - transferStartTime) / 1000;
+                if (elapsed > 0) {
+                    wifiTransferSpeed.textContent = 'Avg speed: ' + formatSpeed(totalBytesToTransfer / elapsed);
+                }
+                showToast('✅ All files sent successfully!');
+                wifiActionBtn.textContent = '📤 Generate Connection Info & Send';
+                wifiActionBtn.disabled = false;
+                return;
+            }
+
+            const file = wifiFiles[currentFileSendIndex];
+            currentFileChunkOffset = 0;
+            currentFileSendIndex = currentFileSendIndex;
+
+            // Send metadata
+            const meta = {
+                type: 'meta',
+                fileIndex: currentFileSendIndex,
+                name: file.name,
+                size: file.size,
+                mime: file.type || 'application/octet-stream',
+            };
+            dataChannel.send(JSON.stringify(meta));
+            console.log('Sending file:', file.name, formatBytes(file.size));
+            setStatus(wifiStatus, 'Sending: ' + file.name, 'connecting');
+
+            // Read and send file in chunks
+            currentFileReader = file.stream().getReader();
+            continueSendingFileChunk();
+        }
+
+        async function continueSendingFileChunk() {
+            if (!dataChannel || dataChannel.readyState !== 'open') return;
+            if (currentFileSendIndex >= wifiFiles.length) return;
+
+            // Check buffer
+            const bufferedAmount = dataChannel.bufferedAmount;
+            const maxBuffer = 1024 * 1024; // 1MB buffer limit
+            if (bufferedAmount > maxBuffer) {
+                // Wait for bufferedamountlow event
+                return;
+            }
+
+            try {
+                const result = await currentFileReader.read();
+                if (result.done) {
+                    // File complete
+                    dataChannel.send(JSON.stringify({
+                        type: 'complete',
+                        fileIndex: currentFileSendIndex,
+                    }));
+                    currentFileSendIndex++;
+                    sendNextFile();
+                    return;
+                }
+
+                const chunk = result.value;
+                // Prepend 2-byte file index header
+                const header = new ArrayBuffer(2);
+                const headerView = new DataView(header);
+                headerView.setUint16(0, currentFileSendIndex);
+                const combined = new Uint8Array(header.byteLength + chunk.byteLength);
+                combined.set(new Uint8Array(header), 0);
+                combined.set(chunk, header.byteLength);
+
+                dataChannel.send(combined.buffer);
+                totalBytesTransferred += chunk.byteLength;
+                updateWifiProgress();
+
+                // Continue sending (async loop)
+                setTimeout(() => continueSendingFileChunk(), 0);
+
+            } catch (err) {
+                console.error('Error reading file chunk:', err);
+                showToast('❌ Error sending file: ' + err.message);
+            }
+        }
+
+        // ==================== QR CODE ====================
+        function displayQRCode(data, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (typeof QRCode === 'undefined') {
+                container.innerHTML =
+                    '<p style="color:#999;font-size:0.7rem;">QR library not loaded. Use copy-paste instead.</p>';
+                return;
+            }
+
+            // Check data size
+            if (data.length > 2500) {
+                container.innerHTML =
+                    '<p style="color:#ffa502;font-size:0.7rem;">⚠️ Data too large for QR. Please use copy-paste.</p>';
+                return;
+            }
+
+            try {
+                new QRCode(container, {
+                    text: data,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.L, // Lowest error correction = more data capacity
+                });
+            } catch (e) {
+                container.innerHTML =
+                    '<p style="color:#ff4757;font-size:0.7rem;">QR generation failed. Use copy-paste.</p>';
+            }
+        }
+
+        // ==================== QR SCANNER ====================
+        async function startScanner() {
+            if (scannerActive) return;
+            if (typeof jsQR === 'undefined') {
+                showToast('⚠️ QR scanner library not available. Please use copy-paste.');
+                return;
+            }
+
+            try {
+                scannerStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                });
+                wifiScannerVideo.srcObject = scannerStream;
+                await wifiScannerVideo.play();
+                wifiScanner.classList.add('active');
+                wifiStopScanBtn.style.display = '';
+                scannerActive = true;
+                scanFrame();
+                showToast('📷 Point camera at the QR code on the other device');
+            } catch (err) {
+                console.error('Camera error:', err);
+                showToast('❌ Cannot access camera: ' + err.message);
+                scannerActive = false;
+            }
+        }
+
+        function stopScanner() {
+            scannerActive = false;
+            if (scannerAnimationId) {
+                cancelAnimationFrame(scannerAnimationId);
+                scannerAnimationId = null;
+            }
+            if (scannerStream) {
+                scannerStream.getTracks().forEach(t => t.stop());
+                scannerStream = null;
+            }
+            wifiScannerVideo.srcObject = null;
+            wifiScanner.classList.remove('active');
+            wifiStopScanBtn.style.display = 'none';
+        }
+
+        function scanFrame() {
+            if (!scannerActive) return;
+
+            const video = wifiScannerVideo;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                const code = jsQR(imageData.data, canvas.width, canvas.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+
+                if (code && code.data) {
+                    console.log('QR Code detected!');
+                    wifiSdpInput.value = code.data;
+                    stopScanner();
+                    showToast('✅ QR code scanned! Connection info pasted.');
+                    // Auto-trigger appropriate action
+                    if (wifiRole === 'receiver') {
+                        setTimeout(() => acceptOfferAndRespond(), 500);
+                    } else if (wifiRole === 'sender' && sdpOffer && wifiSdpInput.value !== sdpOffer) {
+                        setTimeout(() => applyAnswerAndConnect(), 500);
+                    }
+                    return;
+                }
+            }
+            scannerAnimationId = requestAnimationFrame(scanFrame);
+        }
+
+        // ==================== WIFI BUTTON HANDLERS ====================
+        wifiActionBtn.addEventListener('click', () => {
+            if (wifiRole === 'sender') {
+                if (!sdpOffer) {
+                    // Generate offer
+                    generateOffer();
+                } else if (sdpOffer && wifiSdpInput.value.trim() && wifiSdpInput.value.trim() !==
+                    sdpOffer) {
+                    // Apply answer
+                    applyAnswerAndConnect();
+                } else if (sdpOffer && !wifiConnected) {
+                    showToast('⏳ Waiting for receiver response. Paste it in the text box above.');
+                }
+            } else {
+                // Receiver
+                if (!sdpAnswer) {
+                    acceptOfferAndRespond();
+                } else {
+                    showToast('⏳ Response already generated. Waiting for sender to connect.');
+                }
+            }
+        });
+
+        $('#wifi-paste-btn').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    wifiSdpInput.value = text;
+                    showToast('📋 Pasted from clipboard!');
+                }
+            } catch (err) {
+                showToast('⚠️ Cannot access clipboard. Please paste manually.');
+                wifiSdpInput.focus();
+            }
+        });
+
+        $('#wifi-scan-qr-btn').addEventListener('click', () => {
+            if (scannerActive) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        });
+
+        wifiStopScanBtn.addEventListener('click', stopScanner);
+
+        // Copy SDP on double-click
+        wifiSdpInput.addEventListener('dblclick', () => {
+            wifiSdpInput.select();
+            navigator.clipboard.writeText(wifiSdpInput.value).then(() => {
+                showToast('📋 Copied!');
+            }).catch(() => {});
+        });
+
+        // ==================== BLUETOOTH ====================
+        btScanBtn.addEventListener('click', async () => {
+            if (!('bluetooth' in navigator)) {
+                showToast('❌ Web Bluetooth not available. Use Chrome/Edge.');
+                return;
+            }
+
+            try {
+                setStatus(btStatus, 'Scanning...', 'connecting');
+                btDeviceList.innerHTML = '<p style="color:var(--text2);font-size:0.8rem;">Scanning for devices...</p>';
+
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [BLE_SERVICE_UUID],
+                });
+
+                bleDevice = device;
+                btDeviceList.innerHTML = `
+              <div class="file-item">
+                <span class="file-icon">🔵</span>
+                <div class="file-info">
+                  <div class="file-name">${device.name || 'Unknown Device'}</div>
+                  <div class="file-size">ID: ${device.id.slice(0, 8)}...</div>
+                </div>
+              </div>
+            `;
+                setStatus(btStatus, 'Device selected', 'idle');
+                btSendBtn.disabled = !btFile;
+                showToast('✅ Device selected: ' + (device.name || 'Unknown'));
+
+                device.addEventListener('gattserverdisconnected', () => {
+                    setStatus(btStatus, 'Disconnected', 'error');
+                    bleServer = null;
+                    bleCharacteristic = null;
+                });
+
+            } catch (err) {
+                console.error('BT scan error:', err);
+                if (err.name !== 'NotFoundError') {
+                    showToast('❌ ' + err.message);
+                }
+                setStatus(btStatus, 'Scan cancelled', 'idle');
+                btDeviceList.innerHTML = '';
+            }
+        });
+
+        btSendBtn.addEventListener('click', async () => {
+            if (!bleDevice) {
+                showToast('⚠️ Please scan and select a device first.');
+                return;
+            }
+            if (!btFile && btRole === 'sender') {
+                showToast('⚠️ Please select a file to send.');
+                return;
+            }
+
+            try {
+                setStatus(btStatus, 'Connecting...', 'connecting');
+                btSendBtn.disabled = true;
+                btProgress.classList.add('active');
+                btProgressBar.style.width = '0%';
+                btProgressText.textContent = 'Connecting to BLE device...';
+
+                bleServer = await bleDevice.gatt.connect();
+                setStatus(btStatus, 'Getting service...', 'connecting');
+
+                const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+                bleCharacteristic = await service.getCharacteristic(BLE_CHAR_UUID);
+
+                setStatus(btStatus, 'Sending...', 'connecting');
+                btProgressText.textContent = 'Sending ' + btFile.name + '...';
+
+                // Read file and send in small chunks (BLE MTU is typically 20 bytes)
+                const arrayBuffer = await btFile.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                const BLE_CHUNK = 20; // Standard BLE packet size
+                const totalChunks = Math.ceil(bytes.length / BLE_CHUNK);
+
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * BLE_CHUNK;
+                    const end = Math.min(start + BLE_CHUNK, bytes.length);
+                    const chunk = bytes.slice(start, end);
+                    await bleCharacteristic.writeValue(chunk);
+                    const pct = Math.round(((i + 1) / totalChunks) * 100);
+                    btProgressBar.style.width = pct + '%';
+                    btProgressText.textContent =
+                        `Sending... ${formatBytes(Math.min((i + 1) * BLE_CHUNK, bytes.length))} / ${formatBytes(bytes.length)} (${pct}%)`;
+                    // Small delay to avoid overwhelming BLE
+                    if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
+                }
+
+                btProgressBar.style.width = '100%';
+                btProgressText.textContent = 'Sent: ' + formatBytes(bytes.length);
+                setStatus(btStatus, 'File sent! ✓', 'connected');
+                showToast('✅ File sent via Bluetooth!');
+                btSendBtn.disabled = false;
+
+            } catch (err) {
+                console.error('BT send error:', err);
+                setStatus(btStatus, 'Error: ' + err.message, 'error');
+                showToast('❌ Bluetooth error: ' + err.message);
+                btSendBtn.disabled = false;
+            }
+        });
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            updateWifiUI();
+            updateBtUI();
+            setStatus(wifiStatus, 'Idle', 'idle');
+            setStatus(btStatus, 'Idle', 'idle');
+            wifiProgress.classList.remove('active');
+            btProgress.classList.remove('active');
+
+            // Check Bluetooth availability
+            if (!('bluetooth' in navigator)) {
+                btScanBtn.textContent = '⚠️ Bluetooth Not Available';
+                btScanBtn.disabled = true;
+                btScanBtn.style.opacity = '0.5';
+            }
+
+            console.log('🚀 QuickShare initialized');
+            console.log('📶 WiFi Direct: WebRTC P2P with copy-paste + QR signaling');
+            console.log('🔵 Bluetooth: Web Bluetooth API (Chrome/Edge)');
+            console.log('💡 Tip: For browser-to-browser transfers, use WiFi Direct tab.');
+        }
+
+        init();
+
+        // ==================== CLEANUP ====================
+        window.addEventListener('beforeunload', () => {
+            stopScanner();
+            closePeerConnection();
+            if (bleServer && bleServer.connected) {
+                bleServer.disconnect();
+            }
+        });
+
+        console.log('%c⚡ QuickShare Ready %c| %cSelect files and choose a transfer method',
+            'font-size:1.2em;color:#6c5ce7;', '', 'color:#a0a0b0;');
+        console.log('%c📶 WiFi Direct = WebRTC P2P (recommended for browser↔browser)',
+        'color:#00d2a0;');
+        console.log('%c🔵 Bluetooth = Web Bluetooth API (for BLE peripherals)', 'color:#74b9ff;');
+
+    })();
 </script>
-
 </body>
-</html>
+    </html>
