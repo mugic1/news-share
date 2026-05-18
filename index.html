@@ -1,108 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Share</title>
 
-<title>P2P File Share</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
 <style>
 *{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:Arial,sans-serif;
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
 }
 
 body{
-    background:#0f172a;
-    color:white;
-    min-height:100vh;
-    padding:20px;
+background:#0f172a;
+color:white;
+padding:20px;
+min-height:100vh;
 }
 
 .container{
-    max-width:900px;
-    margin:auto;
-}
-
-h1{
-    text-align:center;
-    margin-bottom:20px;
-    font-size:32px;
+max-width:800px;
+margin:auto;
 }
 
 .card{
-    background:#1e293b;
-    border-radius:20px;
-    padding:20px;
-    margin-bottom:20px;
+background:#1e293b;
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
 }
 
-textarea{
-    width:100%;
-    height:120px;
-    background:#0f172a;
-    color:white;
-    border:none;
-    border-radius:12px;
-    padding:12px;
-    resize:none;
-    margin-top:10px;
+h1{
+text-align:center;
+margin-bottom:20px;
+}
+
+h2{
+margin-bottom:15px;
+}
+
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:12px;
+background:#0f172a;
+color:white;
+margin-top:10px;
+font-size:16px;
 }
 
 button{
-    background:#3b82f6;
-    border:none;
-    color:white;
-    padding:12px 20px;
-    border-radius:12px;
-    cursor:pointer;
-    margin-top:10px;
-    margin-right:10px;
-    font-size:16px;
+padding:14px 20px;
+border:none;
+border-radius:12px;
+background:#3b82f6;
+color:white;
+cursor:pointer;
+font-size:16px;
+margin-top:12px;
 }
 
 button:hover{
-    opacity:.9;
+opacity:.9;
 }
 
-input[type=file]{
-    margin-top:15px;
+#peerId{
+word-break:break-all;
+font-size:18px;
+margin-top:10px;
+color:#4ade80;
 }
 
 #status{
-    margin-top:15px;
-    font-size:18px;
-    color:#4ade80;
-    word-break:break-word;
+margin-top:15px;
+font-size:18px;
+color:#4ade80;
+}
+
+#qrcode{
+margin-top:20px;
+display:flex;
+justify-content:center;
+background:white;
+padding:10px;
+border-radius:12px;
+width:max-content;
 }
 
 .progress{
-    width:100%;
-    height:20px;
-    background:#334155;
-    border-radius:10px;
-    overflow:hidden;
-    margin-top:15px;
+width:100%;
+height:22px;
+background:#334155;
+border-radius:20px;
+overflow:hidden;
+margin-top:15px;
 }
 
 .bar{
-    height:100%;
-    width:0%;
-    background:#22c55e;
+height:100%;
+width:0%;
+background:#22c55e;
 }
 
 .fileBox{
-    margin-top:20px;
-    padding:15px;
-    background:#0f172a;
-    border-radius:12px;
+background:#0f172a;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
 }
 
-a{
-    color:#60a5fa;
-    word-break:break-all;
+.fileBox a{
+color:#60a5fa;
+word-break:break-all;
+}
+
+small{
+color:#94a3b8;
 }
 </style>
 </head>
@@ -113,35 +132,21 @@ a{
 <h1>⚡ P2P File Share</h1>
 
 <div class="card">
-<h2>STEP 1 — Create Offer</h2>
+<h2>Your Device ID</h2>
 
-<button id="createOffer">Create Offer</button>
+<div id="peerId">Generating...</div>
 
-<textarea id="offerBox" placeholder="Offer will appear here..."></textarea>
+<div id="qrcode"></div>
 
-<p style="margin-top:10px;">
-Copy this offer and send to second device.
-</p>
+<small>
+Open this page on second device and paste/scan this ID.
+</small>
 </div>
 
 <div class="card">
-<h2>STEP 2 — Paste Offer & Create Answer</h2>
+<h2>Connect To Device</h2>
 
-<textarea id="remoteOfferBox" placeholder="Paste offer here..."></textarea>
-
-<button id="createAnswer">Create Answer</button>
-
-<textarea id="answerBox" placeholder="Answer will appear here..."></textarea>
-
-<p style="margin-top:10px;">
-Send this answer back to first device.
-</p>
-</div>
-
-<div class="card">
-<h2>STEP 3 — Paste Answer</h2>
-
-<textarea id="remoteAnswerBox" placeholder="Paste answer here..."></textarea>
+<input id="remoteId" placeholder="Paste other device ID">
 
 <button id="connectBtn">Connect</button>
 
@@ -151,222 +156,150 @@ Send this answer back to first device.
 <div class="card">
 <h2>Send File</h2>
 
-<input type="file" id="fileInput"/>
+<input type="file" id="fileInput">
 
 <div class="progress">
 <div class="bar" id="bar"></div>
 </div>
 
-<div id="sendInfo"></div>
+<div id="progressText"></div>
 </div>
 
 <div class="card">
 <h2>Received Files</h2>
 
-<div id="receivedFiles"></div>
+<div id="received"></div>
 </div>
 
 </div>
 
 <script>
-let pc = new RTCPeerConnection();
+let peer;
+let conn;
 
-let channel;
+const peerIdDiv = document.getElementById('peerId');
+const statusDiv = document.getElementById('status');
+const bar = document.getElementById('bar');
+const progressText = document.getElementById('progressText');
+const receivedDiv = document.getElementById('received');
 
-let receivedBuffers = [];
-let receivedSize = 0;
-let fileSize = 0;
-let fileName = "";
+const myId = 'share-' + Math.random().toString(36).substring(2,10);
 
-const CHUNK_SIZE = 64 * 1024;
+peer = new Peer(myId);
 
-const statusDiv = document.getElementById("status");
-const bar = document.getElementById("bar");
+peer.on('open', id => {
+peerIdDiv.innerText = id;
 
-function setStatus(text){
-    statusDiv.innerText = text;
+QRCode.toCanvas(id, {
+width:220
+}, function(error, canvas){
+if(!error){
+document.getElementById('qrcode').appendChild(canvas);
+}
+});
+});
+
+peer.on('connection', connection => {
+conn = connection;
+setupConnection();
+});
+
+document.getElementById('connectBtn').onclick = () => {
+const remoteId = document.getElementById('remoteId').value.trim();
+
+if(!remoteId){
+alert('Enter Device ID');
+return;
 }
 
-document.getElementById("createOffer").onclick = async () => {
+conn = peer.connect(remoteId, {
+reliable:true
+});
 
-    channel = pc.createDataChannel("file");
-
-    setupChannel();
-
-    const offer = await pc.createOffer();
-
-    await pc.setLocalDescription(offer);
-
-    await waitIce();
-
-    document.getElementById("offerBox").value =
-        JSON.stringify(pc.localDescription);
+setupConnection();
 };
 
-document.getElementById("createAnswer").onclick = async () => {
+function setupConnection(){
 
-    const offer = JSON.parse(
-        document.getElementById("remoteOfferBox").value
-    );
+conn.on('open', () => {
+statusDiv.innerText = 'Connected ✅';
+});
 
-    pc.ondatachannel = (e)=>{
-        channel = e.channel;
-        setupChannel();
-    };
+conn.on('close', () => {
+statusDiv.innerText = 'Disconnected ❌';
+});
 
-    await pc.setRemoteDescription(offer);
+conn.on('data', data => {
 
-    const answer = await pc.createAnswer();
+if(data.type === 'file'){
 
-    await pc.setLocalDescription(answer);
+const blob = new Blob([data.buffer]);
 
-    await waitIce();
+const url = URL.createObjectURL(blob);
 
-    document.getElementById("answerBox").value =
-        JSON.stringify(pc.localDescription);
-};
+const div = document.createElement('div');
 
-document.getElementById("connectBtn").onclick = async () => {
+div.className = 'fileBox';
 
-    const answer = JSON.parse(
-        document.getElementById("remoteAnswerBox").value
-    );
+div.innerHTML = `
+<p>📁 ${data.name}</p>
+<br>
+<a href="${url}" download="${data.name}">
+Download File
+</a>
+`;
 
-    await pc.setRemoteDescription(answer);
+receivedDiv.prepend(div);
 
-    setStatus("Connected ✅");
-};
-
-function waitIce(){
-    return new Promise(resolve => {
-
-        if(pc.iceGatheringState === "complete"){
-            resolve();
-        } else {
-            pc.onicegatheringstatechange = ()=>{
-                if(pc.iceGatheringState === "complete"){
-                    resolve();
-                }
-            };
-        }
-
-    });
 }
 
-function setupChannel(){
+});
 
-    channel.binaryType = "arraybuffer";
-
-    channel.onopen = ()=>{
-        setStatus("Connected ✅");
-    };
-
-    channel.onclose = ()=>{
-        setStatus("Disconnected ❌");
-    };
-
-    channel.onmessage = (event)=>{
-
-        if(typeof event.data === "string"){
-
-            const meta = JSON.parse(event.data);
-
-            fileName = meta.name;
-            fileSize = meta.size;
-
-            receivedBuffers = [];
-            receivedSize = 0;
-
-            return;
-        }
-
-        receivedBuffers.push(event.data);
-
-        receivedSize += event.data.byteLength;
-
-        const percent = (receivedSize / fileSize) * 100;
-
-        bar.style.width = percent + "%";
-
-        if(receivedSize === fileSize){
-
-            const blob = new Blob(receivedBuffers);
-
-            const url = URL.createObjectURL(blob);
-
-            const div = document.createElement("div");
-
-            div.className = "fileBox";
-
-            div.innerHTML = `
-                <p>📁 ${fileName}</p>
-                <a href="${url}" download="${fileName}">
-                    Download File
-                </a>
-            `;
-
-            document.getElementById("receivedFiles")
-                .appendChild(div);
-
-            bar.style.width = "0%";
-        }
-
-    };
 }
 
-document.getElementById("fileInput").onchange = async (e)=>{
+document.getElementById('fileInput').addEventListener('change', async e => {
 
-    const file = e.target.files[0];
+const file = e.target.files[0];
 
-    if(!file) return;
+if(!file) return;
 
-    if(!channel || channel.readyState !== "open"){
-        alert("Not connected");
-        return;
-    }
+if(!conn || conn.open !== true){
+alert('Not connected');
+return;
+}
 
-    channel.send(JSON.stringify({
-        name:file.name,
-        size:file.size
-    }));
+const reader = new FileReader();
 
-    let offset = 0;
+reader.onload = function(){
 
-    const reader = new FileReader();
+conn.send({
+type:'file',
+name:file.name,
+buffer:reader.result
+});
 
-    reader.onload = (ev)=>{
+bar.style.width = '100%';
 
-        channel.send(ev.target.result);
+progressText.innerText = 'File Sent ✅';
 
-        offset += ev.target.result.byteLength;
-
-        const percent = (offset / file.size) * 100;
-
-        bar.style.width = percent + "%";
-
-        document.getElementById("sendInfo").innerText =
-            Math.floor(percent) + "% sent";
-
-        if(offset < file.size){
-            readSlice(offset);
-        } else {
-            setTimeout(()=>{
-                bar.style.width = "0%";
-            },1000);
-        }
-
-    };
-
-    function readSlice(o){
-
-        const slice = file.slice(o, o + CHUNK_SIZE);
-
-        reader.readAsArrayBuffer(slice);
-    }
-
-    readSlice(0);
+setTimeout(()=>{
+bar.style.width = '0%';
+progressText.innerText = '';
+},1500);
 
 };
+
+reader.onprogress = function(ev){
+if(ev.lengthComputable){
+const percent = (ev.loaded / ev.total) * 100;
+bar.style.width = percent + '%';
+progressText.innerText = Math.floor(percent) + '%';
+}
+};
+
+reader.readAsArrayBuffer(file);
+
+});
 </script>
 
 </body>
