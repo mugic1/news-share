@@ -3,12 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P2P Share</title>
 
+<title>P2P File Share</title>
+
+<!-- PeerJS -->
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<!-- QR Generator -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
+<!-- QR Scanner -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
+
 *{
 margin:0;
 padding:0;
@@ -28,6 +36,12 @@ max-width:800px;
 margin:auto;
 }
 
+h1{
+text-align:center;
+margin-bottom:20px;
+font-size:32px;
+}
+
 .card{
 background:#1e293b;
 padding:20px;
@@ -35,13 +49,23 @@ border-radius:20px;
 margin-bottom:20px;
 }
 
-h1{
-text-align:center;
-margin-bottom:20px;
-}
-
 h2{
 margin-bottom:15px;
+}
+
+#peerId{
+word-break:break-all;
+font-size:18px;
+color:#4ade80;
+margin-top:10px;
+}
+
+#qrcode{
+margin-top:20px;
+background:white;
+padding:10px;
+border-radius:12px;
+width:max-content;
 }
 
 input{
@@ -51,8 +75,8 @@ border:none;
 border-radius:12px;
 background:#0f172a;
 color:white;
-margin-top:10px;
 font-size:16px;
+margin-top:10px;
 }
 
 button{
@@ -61,36 +85,20 @@ border:none;
 border-radius:12px;
 background:#3b82f6;
 color:white;
-cursor:pointer;
 font-size:16px;
+cursor:pointer;
 margin-top:12px;
+margin-right:10px;
 }
 
 button:hover{
 opacity:.9;
 }
 
-#peerId{
-word-break:break-all;
-font-size:18px;
-margin-top:10px;
-color:#4ade80;
-}
-
 #status{
 margin-top:15px;
 font-size:18px;
 color:#4ade80;
-}
-
-#qrcode{
-margin-top:20px;
-display:flex;
-justify-content:center;
-background:white;
-padding:10px;
-border-radius:12px;
-width:max-content;
 }
 
 .progress{
@@ -108,6 +116,14 @@ width:0%;
 background:#22c55e;
 }
 
+#reader{
+width:300px;
+margin-top:20px;
+display:none;
+overflow:hidden;
+border-radius:12px;
+}
+
 .fileBox{
 background:#0f172a;
 padding:15px;
@@ -123,6 +139,7 @@ word-break:break-all;
 small{
 color:#94a3b8;
 }
+
 </style>
 </head>
 <body>
@@ -132,28 +149,39 @@ color:#94a3b8;
 <h1>⚡ P2P File Share</h1>
 
 <div class="card">
+
 <h2>Your Device ID</h2>
 
 <div id="peerId">Generating...</div>
 
 <div id="qrcode"></div>
 
+<br>
+
 <small>
-Open this page on second device and paste/scan this ID.
+Open this page on second device and scan QR.
 </small>
+
 </div>
 
 <div class="card">
+
 <h2>Connect To Device</h2>
 
-<input id="remoteId" placeholder="Paste other device ID">
+<input id="remoteId" placeholder="Paste Device ID">
 
 <button id="connectBtn">Connect</button>
 
+<button id="scanBtn">Scan QR</button>
+
+<div id="reader"></div>
+
 <div id="status">Not Connected</div>
+
 </div>
 
 <div class="card">
+
 <h2>Send File</h2>
 
 <input type="file" id="fileInput">
@@ -163,17 +191,21 @@ Open this page on second device and paste/scan this ID.
 </div>
 
 <div id="progressText"></div>
+
 </div>
 
 <div class="card">
+
 <h2>Received Files</h2>
 
 <div id="received"></div>
+
 </div>
 
 </div>
 
 <script>
+
 let peer;
 let conn;
 
@@ -183,61 +215,94 @@ const bar = document.getElementById('bar');
 const progressText = document.getElementById('progressText');
 const receivedDiv = document.getElementById('received');
 
-const myId = 'share-' + Math.random().toString(36).substring(2,10);
+const myId =
+'share-' +
+Math.random().toString(36).substring(2,10);
 
 peer = new Peer(myId);
 
 peer.on('open', id => {
+
 peerIdDiv.innerText = id;
 
-QRCode.toCanvas(id, {
+QRCode.toCanvas(id,{
 width:220
-}, function(error, canvas){
+},function(error,canvas){
+
 if(!error){
-document.getElementById('qrcode').appendChild(canvas);
+
+document
+.getElementById('qrcode')
+.appendChild(canvas);
+
 }
+
 });
+
 });
 
 peer.on('connection', connection => {
+
 conn = connection;
+
 setupConnection();
+
 });
 
-document.getElementById('connectBtn').onclick = () => {
-const remoteId = document.getElementById('remoteId').value.trim();
+document
+.getElementById('connectBtn')
+.onclick = () => {
+
+const remoteId =
+document
+.getElementById('remoteId')
+.value
+.trim();
 
 if(!remoteId){
+
 alert('Enter Device ID');
+
 return;
+
 }
 
-conn = peer.connect(remoteId, {
+conn = peer.connect(remoteId,{
 reliable:true
 });
 
 setupConnection();
+
 };
 
 function setupConnection(){
 
 conn.on('open', () => {
-statusDiv.innerText = 'Connected ✅';
+
+statusDiv.innerText =
+'Connected ✅';
+
 });
 
 conn.on('close', () => {
-statusDiv.innerText = 'Disconnected ❌';
+
+statusDiv.innerText =
+'Disconnected ❌';
+
 });
 
 conn.on('data', data => {
 
 if(data.type === 'file'){
 
-const blob = new Blob([data.buffer]);
+const blob =
+new Blob([data.buffer]);
 
-const url = URL.createObjectURL(blob);
+const url =
+URL.createObjectURL(blob);
 
-const div = document.createElement('div');
+const div =
+document.createElement('div');
 
 div.className = 'fileBox';
 
@@ -257,15 +322,20 @@ receivedDiv.prepend(div);
 
 }
 
-document.getElementById('fileInput').addEventListener('change', async e => {
+document
+.getElementById('fileInput')
+.addEventListener('change', e => {
 
 const file = e.target.files[0];
 
 if(!file) return;
 
 if(!conn || conn.open !== true){
+
 alert('Not connected');
+
 return;
+
 }
 
 const reader = new FileReader();
@@ -280,26 +350,75 @@ buffer:reader.result
 
 bar.style.width = '100%';
 
-progressText.innerText = 'File Sent ✅';
+progressText.innerText =
+'File Sent ✅';
 
 setTimeout(()=>{
+
 bar.style.width = '0%';
+
 progressText.innerText = '';
+
 },1500);
 
 };
 
 reader.onprogress = function(ev){
+
 if(ev.lengthComputable){
-const percent = (ev.loaded / ev.total) * 100;
-bar.style.width = percent + '%';
-progressText.innerText = Math.floor(percent) + '%';
+
+const percent =
+(ev.loaded / ev.total) * 100;
+
+bar.style.width =
+percent + '%';
+
+progressText.innerText =
+Math.floor(percent) + '%';
+
 }
+
 };
 
 reader.readAsArrayBuffer(file);
 
 });
+
+document
+.getElementById('scanBtn')
+.onclick = async () => {
+
+document
+.getElementById('reader')
+.style.display = 'block';
+
+const scanner =
+new Html5Qrcode("reader");
+
+scanner.start(
+{ facingMode: "environment" },
+{
+fps:10,
+qrbox:250
+},
+(decodedText)=>{
+
+document
+.getElementById('remoteId')
+.value = decodedText;
+
+scanner.stop();
+
+document
+.getElementById('reader')
+.style.display = 'none';
+
+},
+(err)=>{}
+);
+
+};
+
 </script>
 
 </body>
