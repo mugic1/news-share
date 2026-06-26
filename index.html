@@ -22,14 +22,37 @@
             --text-sec: #64748b;
             --radius: 14px;
             --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --transition: 0.25s ease;
         }
 
+        /* Dark theme (auto + manual) */
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text-main: #f1f5f9;
+            --text-sec: #94a3b8;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #1e293b;
+            --text-sec: #64748b;
+        }
+        /* Auto theme: use prefers-color-scheme */
         @media (prefers-color-scheme: dark) {
-            :root {
+            :root:not([data-theme="light"]):not([data-theme="dark"]) {
                 --bg: #0f172a;
                 --surface: #1e293b;
                 --text-main: #f1f5f9;
                 --text-sec: #94a3b8;
+            }
+        }
+        @media (prefers-color-scheme: light) {
+            :root:not([data-theme="light"]):not([data-theme="dark"]) {
+                --bg: #f8fafc;
+                --surface: #ffffff;
+                --text-main: #1e293b;
+                --text-sec: #64748b;
             }
         }
 
@@ -45,7 +68,7 @@
             background: var(--bg);
             color: var(--text-main);
             padding-bottom: 80px;
-            transition: background 0.2s;
+            transition: background var(--transition), color var(--transition);
         }
 
         .hidden {
@@ -80,6 +103,7 @@
             padding: 0 20px;
             z-index: 100;
             backdrop-filter: blur(6px);
+            transition: background var(--transition), border-color var(--transition);
         }
         .logo {
             font-weight: 700;
@@ -126,6 +150,7 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 14px;
+            transition: background var(--transition), border var(--transition);
         }
         .daily-left {
             flex: 1 1 180px;
@@ -208,22 +233,6 @@
             color: var(--primary);
         }
 
-        .daily-complete {
-            background: #22c55e20;
-            border: 1px solid #22c55e40;
-            border-radius: var(--radius);
-            padding: 12px 18px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 600;
-            color: #15803d;
-        }
-        .daily-complete i {
-            color: #22c55e;
-        }
-
         /* ─── DASHBOARD GRID ─── */
         .dash-grid {
             display: grid;
@@ -239,7 +248,7 @@
             border: 1px solid rgba(0, 0, 0, 0.06);
             box-shadow: var(--shadow);
             cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s;
+            transition: transform 0.15s, box-shadow 0.15s, background var(--transition);
         }
         .dash-card:active {
             transform: scale(0.96);
@@ -275,7 +284,7 @@
             border: 1px solid rgba(0, 0, 0, 0.04);
             display: flex;
             flex-direction: column;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, background var(--transition);
         }
         .video-card.completed {
             opacity: 0.55;
@@ -499,6 +508,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             max-height: 90vh;
             overflow-y: auto;
+            transition: background var(--transition);
         }
         .modal-box h3 {
             font-size: 1.1rem;
@@ -570,6 +580,152 @@
             color: var(--primary);
         }
 
+        /* ─── TIMER TAB ─── */
+        .timer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px 0;
+        }
+        .timer-mode-tabs {
+            display: flex;
+            gap: 12px;
+            background: var(--surface);
+            padding: 6px;
+            border-radius: 99px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .timer-mode-tabs button {
+            background: none;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 99px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-sec);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .timer-mode-tabs button.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .timer-display {
+            font-size: 4.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            background: var(--surface);
+            padding: 20px 40px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            min-width: 200px;
+            text-align: center;
+            transition: background var(--transition);
+        }
+        .timer-display .label {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--text-sec);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .timer-controls button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 99px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.15s, background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .timer-controls button:active {
+            transform: scale(0.94);
+        }
+        .timer-controls .btn-start {
+            background: var(--primary);
+            color: #fff;
+        }
+        .timer-controls .btn-pause {
+            background: #facc15;
+            color: #1e293b;
+        }
+        .timer-controls .btn-reset {
+            background: #e2e8f0;
+            color: var(--text-main);
+        }
+        .timer-controls .btn-skip {
+            background: #94a3b8;
+            color: #fff;
+        }
+
+        .timer-stats {
+            display: flex;
+            gap: 30px;
+            background: var(--surface);
+            padding: 16px 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .timer-stats .stat {
+            text-align: center;
+        }
+        .timer-stats .stat .num {
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+        .timer-stats .stat .lbl {
+            font-size: 0.7rem;
+            color: var(--text-sec);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .timer-settings {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: var(--surface);
+            padding: 16px 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            margin-top: 10px;
+        }
+        .timer-settings label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: var(--text-sec);
+        }
+        .timer-settings input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text-main);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
         /* ─── BOTTOM NAV ─── */
         .btm-nav {
             position: fixed;
@@ -584,6 +740,7 @@
             align-items: center;
             backdrop-filter: blur(6px);
             z-index: 50;
+            transition: background var(--transition), border var(--transition);
         }
         .btm-btn {
             background: none;
@@ -676,6 +833,14 @@
             .video-wrapper {
                 border-radius: 4px;
             }
+            .timer-display {
+                font-size: 3.5rem;
+                padding: 16px 24px;
+            }
+            .timer-stats {
+                gap: 16px;
+                padding: 12px 20px;
+            }
         }
 
         @media (min-width: 768px) {
@@ -698,6 +863,8 @@
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const STATE_KEY = 'studyStreamDB';
         const DAILY_KEY = 'studyStreamDaily';
+        const TIMER_KEY = 'studyStreamTimer';
+        const THEME_KEY = 'studyStreamTheme';
 
         const app = {
             data: {
@@ -705,19 +872,38 @@
                 videos: [],
                 modalOpen: false,
                 addCat: 'physics',
-                tempLinks: '',
                 goalModal: false,
                 goalInput: 30,
+                theme: 'auto', // 'auto', 'light', 'dark'
             },
 
             // ─── Daily tracking ───
             daily: {
-                dailyGoal: 30, // minutes
+                dailyGoal: 30,
                 streak: 0,
                 todayWatchSeconds: 0,
                 todayDate: '',
                 lastActiveDate: '',
                 lastStreakDate: '',
+            },
+
+            // ─── Timer state ───
+            timer: {
+                mode: 'pomodoro', // 'pomodoro' or 'stopwatch'
+                pomodoro: {
+                    workDuration: 25, // minutes
+                    breakDuration: 5,
+                    remaining: 25 * 60, // seconds
+                    state: 'idle', // 'idle', 'running', 'paused'
+                    isBreak: false,
+                    sessionsCompleted: 0,
+                    timerInterval: null,
+                },
+                stopwatch: {
+                    elapsed: 0, // seconds
+                    running: false,
+                    timerInterval: null,
+                },
             },
 
             player: {
@@ -733,14 +919,27 @@
             init() {
                 this.loadState();
                 this.loadDaily();
+                this.loadTimer();
+                this.loadTheme();
+                this.applyTheme();
                 this.checkDayReset();
                 this.render();
                 // Listen for visibility change to save progress
                 document.addEventListener('visibilitychange', () => {
-                    if (document.hidden) this.saveDaily();
+                    if (document.hidden) {
+                        this.saveDaily();
+                        this.saveTimer();
+                    }
                 });
                 // Auto-save daily every 30s
-                setInterval(() => this.saveDaily(), 30000);
+                setInterval(() => {
+                    this.saveDaily();
+                    this.saveTimer();
+                }, 30000);
+                // Save timer state on page unload
+                window.addEventListener('beforeunload', () => {
+                    this.saveTimer();
+                });
             },
 
             // ─── State IO ───
@@ -774,6 +973,73 @@
                 localStorage.setItem(DAILY_KEY, JSON.stringify(this.daily));
             },
 
+            loadTimer() {
+                const raw = localStorage.getItem(TIMER_KEY);
+                if (raw) {
+                    try {
+                        const t = JSON.parse(raw);
+                        // Merge carefully
+                        if (t.mode) this.timer.mode = t.mode;
+                        if (t.pomodoro) {
+                            Object.assign(this.timer.pomodoro, t.pomodoro);
+                            // Restore timer interval? No, we'll restart only if running
+                            this.timer.pomodoro.timerInterval = null;
+                            if (this.timer.pomodoro.state === 'running') {
+                                // We need to restart the interval
+                                this.startPomodoroInterval();
+                            }
+                        }
+                        if (t.stopwatch) {
+                            Object.assign(this.timer.stopwatch, t.stopwatch);
+                            this.timer.stopwatch.timerInterval = null;
+                            if (this.timer.stopwatch.running) {
+                                this.startStopwatchInterval();
+                            }
+                        }
+                    } catch (_) {}
+                }
+            },
+
+            saveTimer() {
+                // Save a copy without the interval references
+                const toSave = {
+                    mode: this.timer.mode,
+                    pomodoro: { ...this.timer.pomodoro, timerInterval: null },
+                    stopwatch: { ...this.timer.stopwatch, timerInterval: null },
+                };
+                localStorage.setItem(TIMER_KEY, JSON.stringify(toSave));
+            },
+
+            loadTheme() {
+                const saved = localStorage.getItem(THEME_KEY);
+                if (saved) this.data.theme = saved;
+            },
+
+            saveTheme() {
+                localStorage.setItem(THEME_KEY, this.data.theme);
+                this.applyTheme();
+            },
+
+            applyTheme() {
+                const root = document.documentElement;
+                if (this.data.theme === 'auto') {
+                    root.removeAttribute('data-theme');
+                } else {
+                    root.setAttribute('data-theme', this.data.theme);
+                }
+                // Also update icon if rendered
+                if (document.querySelector('.theme-toggle')) {
+                    this.render(); // re-render to update icon
+                }
+            },
+
+            toggleTheme() {
+                const modes = ['auto', 'light', 'dark'];
+                const idx = modes.indexOf(this.data.theme);
+                this.data.theme = modes[(idx + 1) % modes.length];
+                this.saveTheme();
+            },
+
             getToday() {
                 return new Date().toISOString().slice(0, 10);
             },
@@ -782,22 +1048,20 @@
             checkDayReset() {
                 const today = this.getToday();
                 if (this.daily.todayDate !== today) {
-                    // Check if yesterday's goal was met
                     const goalSec = this.daily.dailyGoal * 60;
                     if (this.daily.todayWatchSeconds >= goalSec) {
                         this.daily.streak += 1;
                         this.daily.lastStreakDate = this.daily.todayDate;
                     } else {
-                        // Only reset if there was activity yesterday, otherwise keep streak
                         if (this.daily.todayWatchSeconds > 0) {
                             this.daily.streak = 0;
                         }
-                        // If no activity, streak stays (grace period)
                     }
                     this.daily.todayWatchSeconds = 0;
                     this.daily.todayDate = today;
                     this.daily.lastActiveDate = today;
                     this.saveDaily();
+                    // Also reset timer sessions? Not necessary.
                 }
             },
 
@@ -807,8 +1071,8 @@
                 this.daily.todayWatchSeconds += seconds;
                 this.daily.lastActiveDate = this.getToday();
                 this.saveDaily();
-                // Re-render if on home
-                if (this.data.tab === 'home') this.render();
+                // Re-render if on home or timer (to update daily progress)
+                if (this.data.tab === 'home' || this.data.tab === 'timer') this.render();
             },
 
             // ─── Get daily progress ───
@@ -838,6 +1102,10 @@
 
             // ─── Navigation ───
             setTab(t) {
+                // If switching away from timer, save timer state
+                if (this.data.tab === 'timer' && t !== 'timer') {
+                    this.saveTimer();
+                }
                 this.data.tab = t;
                 this.render();
                 window.scrollTo(0, 0);
@@ -903,19 +1171,15 @@
                 this.saveState();
             },
 
-            // ─── Get video title ───
             getVideoTitle(id) {
-                // Use a cached version or return a short id
                 const video = this.data.videos.find(v => v.id === id);
                 if (video && video.title) return video.title;
                 return `Lecture ${id.slice(0, 6)}…`;
             },
 
-            // ─── Get next video to watch ───
             getNextVideo() {
                 const list = this.data.videos.filter(v => v.status !== 'completed');
                 if (list.length === 0) return null;
-                // Prefer in-progress, then newest
                 const inProgress = list.filter(v => v.status === 'in-progress');
                 if (inProgress.length > 0) {
                     return inProgress.sort((a, b) => b.lastWatched - a.lastWatched)[0];
@@ -927,10 +1191,7 @@
             playVideo(id) {
                 const video = this.data.videos.find(v => v.id === id);
                 if (!video) return;
-
-                // Close any existing player
                 this.closePlayer();
-
                 this.player.currentVideoId = id;
 
                 const overlay = document.createElement('div');
@@ -957,7 +1218,6 @@
                 document.body.appendChild(overlay);
                 lucide.createIcons();
 
-                // Init YouTube player
                 const startSec = Math.floor(video.progress || 0);
                 const player = new YT.Player('player-container', {
                     videoId: id,
@@ -970,14 +1230,12 @@
                     },
                     events: {
                         onReady: (e) => {
-                            // Video duration may be available
                             const dur = e.target.getDuration();
                             if (dur && dur > 0) {
                                 const v = this.data.videos.find(v => v.id === id);
                                 if (v) { v.duration = dur;
                                     this.saveState(); }
                             }
-                            // Start tracking
                             this.player.instance = e.target;
                             this.player.sessionStart = Date.now();
                             this.player.sessionSeconds = 0;
@@ -991,23 +1249,20 @@
                             if (data === YT.PlayerState.PLAYING) {
                                 this.player.isTracking = true;
                                 this.player.sessionStart = Date.now();
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').textContent = '▶ Playing');
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').style.color = '#4ade80');
+                                const status = document.getElementById('p-status');
+                                if (status) { status.textContent = '▶ Playing';
+                                    status.style.color = '#4ade80'; }
                             } else if (data === YT.PlayerState.PAUSED) {
                                 this.player.isTracking = false;
-                                // Add the time since last track
                                 if (this.player.sessionStart > 0) {
                                     const elapsed = (Date.now() - this.player.sessionStart) / 1000;
                                     this.player.sessionSeconds += elapsed;
                                     this.addWatchTime(elapsed);
                                     this.player.sessionStart = Date.now();
                                 }
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').textContent = '⏸ Paused');
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').style.color = '#facc15');
+                                const status = document.getElementById('p-status');
+                                if (status) { status.textContent = '⏸ Paused';
+                                    status.style.color = '#facc15'; }
                             } else if (data === YT.PlayerState.ENDED) {
                                 this.player.isTracking = false;
                                 if (this.player.sessionStart > 0) {
@@ -1016,32 +1271,26 @@
                                     this.addWatchTime(elapsed);
                                     this.player.sessionStart = 0;
                                 }
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').textContent = '✓ Done');
-                                document.getElementById('p-status') &&
-                                    (document.getElementById('p-status').style.color = '#4ade80');
-                                // Mark as complete
+                                const status = document.getElementById('p-status');
+                                if (status) { status.textContent = '✓ Done';
+                                    status.style.color = '#4ade80'; }
                                 const v = this.data.videos.find(v => v.id === id);
                                 if (v) {
                                     v.status = 'completed';
                                     v.progress = v.duration || 0;
                                     this.saveState();
                                 }
-                                // Auto-close after 3s
                                 setTimeout(() => this.closePlayer(), 2500);
                             }
                         },
                         onError: (e) => {
                             console.warn('YouTube error:', e.data);
-                            document.getElementById('p-status') &&
-                                (document.getElementById('p-status').textContent = '⚠ Error');
-                            document.getElementById('p-status') &&
-                                (document.getElementById('p-status').style.color = '#ef4444');
+                            const status = document.getElementById('p-status');
+                            if (status) { status.textContent = '⚠ Error';
+                                status.style.color = '#ef4444'; }
                         }
                     }
                 });
-
-                // Store reference
                 this.player.instance = player;
             },
 
@@ -1050,7 +1299,6 @@
                 try {
                     const currentTime = player.getCurrentTime();
                     const duration = player.getDuration();
-                    // Update progress in video data
                     const id = this.player.currentVideoId;
                     if (id && currentTime > 0) {
                         const v = this.data.videos.find(v => v.id === id);
@@ -1059,14 +1307,11 @@
                             v.duration = duration || v.duration;
                             v.status = 'in-progress';
                             v.lastWatched = Date.now();
-                            // Save periodically but not too often
                             if (Math.floor(currentTime) % 5 === 0) {
                                 this.saveState();
                             }
                         }
                     }
-
-                    // Update session timer
                     let elapsed = this.player.sessionSeconds;
                     if (this.player.isTracking && this.player.sessionStart > 0) {
                         elapsed += (Date.now() - this.player.sessionStart) / 1000;
@@ -1077,8 +1322,6 @@
                     if (sessionEl) {
                         sessionEl.textContent = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
                     }
-
-                    // Daily progress
                     const prog = this.getDailyProgress();
                     const dailyEl = document.getElementById('p-daily');
                     if (dailyEl) {
@@ -1087,15 +1330,6 @@
                         dailyEl.textContent = `📚 ${watchedMin}m / ${goalMin}m`;
                         if (prog.isComplete) {
                             dailyEl.textContent = `✅ ${watchedMin}m / ${goalMin}m — Goal met! 🎉`;
-                        }
-                    }
-
-                    // Update video progress in the card (if visible)
-                    if (id) {
-                        const fillEl = document.querySelector(`.video-card[data-id="${id}"] .progress-bar .fill`);
-                        if (fillEl && duration > 0) {
-                            const pct = Math.min((currentTime / duration) * 100, 100);
-                            fillEl.style.width = pct + '%';
                         }
                     }
                 } catch (_) { /* ignore */ }
@@ -1115,7 +1349,6 @@
             },
 
             closePlayer() {
-                // Stop tracking
                 if (this.player.timerInterval) {
                     clearInterval(this.player.timerInterval);
                     this.player.timerInterval = null;
@@ -1129,25 +1362,203 @@
                 }
                 this.player.isTracking = false;
                 this.player.sessionStart = 0;
-
-                // Destroy player
                 if (this.player.instance && typeof this.player.instance.destroy === 'function') {
                     try { this.player.instance.destroy(); } catch (_) {}
                 }
                 this.player.instance = null;
                 this.player.currentVideoId = null;
-
-                // Remove overlay
                 const ov = document.querySelector('.player-overlay');
                 if (ov) ov.remove();
-
-                // Exit fullscreen if active
                 if (document.fullscreenElement) {
                     if (document.exitFullscreen) document.exitFullscreen();
                 }
-
                 this.saveState();
                 this.render();
+            },
+
+            // ─── TIMER FUNCTIONS ──────────────────────────────────────
+
+            setTimerMode(mode) {
+                if (this.timer.mode === mode) return;
+                // Save current timer state before switching
+                this.saveTimer();
+                this.timer.mode = mode;
+                // Ensure timers are stopped
+                this.stopPomodoroInterval();
+                this.stopStopwatchInterval();
+                this.render();
+            },
+
+            // Pomodoro
+            startPomodoro() {
+                const p = this.timer.pomodoro;
+                if (p.state === 'running') return;
+                // If idle or paused, start
+                p.state = 'running';
+                if (p.remaining <= 0) {
+                    // Reset to work duration if break not set
+                    p.remaining = p.isBreak ? p.breakDuration * 60 : p.workDuration * 60;
+                }
+                this.startPomodoroInterval();
+                this.saveTimer();
+                this.render();
+            },
+
+            pausePomodoro() {
+                const p = this.timer.pomodoro;
+                if (p.state !== 'running') return;
+                p.state = 'paused';
+                this.stopPomodoroInterval();
+                this.saveTimer();
+                this.render();
+            },
+
+            resetPomodoro() {
+                const p = this.timer.pomodoro;
+                this.stopPomodoroInterval();
+                p.state = 'idle';
+                p.isBreak = false;
+                p.remaining = p.workDuration * 60;
+                this.saveTimer();
+                this.render();
+            },
+
+            skipPomodoro() {
+                const p = this.timer.pomodoro;
+                if (p.state === 'idle') return;
+                // If running or paused, skip to next phase
+                this.stopPomodoroInterval();
+                if (!p.isBreak) {
+                    // Work completed, add time to daily
+                    const workTime = p.workDuration * 60 - p.remaining;
+                    if (workTime > 0) {
+                        this.addWatchTime(workTime);
+                        p.sessionsCompleted += 1;
+                    }
+                    p.isBreak = true;
+                    p.remaining = p.breakDuration * 60;
+                } else {
+                    p.isBreak = false;
+                    p.remaining = p.workDuration * 60;
+                }
+                p.state = 'idle';
+                this.saveTimer();
+                this.render();
+            },
+
+            startPomodoroInterval() {
+                this.stopPomodoroInterval();
+                this.timer.pomodoro.timerInterval = setInterval(() => {
+                    const p = this.timer.pomodoro;
+                    if (p.state !== 'running') return;
+                    p.remaining -= 1;
+                    if (p.remaining <= 0) {
+                        // Timer finished
+                        this.stopPomodoroInterval();
+                        if (!p.isBreak) {
+                            // Work session completed
+                            this.addWatchTime(p.workDuration * 60);
+                            p.sessionsCompleted += 1;
+                            // Start break automatically
+                            p.isBreak = true;
+                            p.remaining = p.breakDuration * 60;
+                            p.state = 'idle'; // idle so user can start break manually or auto-start
+                            // We can auto-start break if desired: p.state = 'running'; this.startPomodoroInterval();
+                            // But we'll let user start break manually.
+                            this.saveTimer();
+                            this.render();
+                            // Notify
+                            if (Notification.permission === 'granted') {
+                                new Notification('Study session complete! Time for a break 🎉');
+                            } else {
+                                alert('Work session complete! Take a break.');
+                            }
+                        } else {
+                            // Break finished
+                            p.isBreak = false;
+                            p.remaining = p.workDuration * 60;
+                            p.state = 'idle';
+                            this.saveTimer();
+                            this.render();
+                            if (Notification.permission === 'granted') {
+                                new Notification('Break is over! Ready for another session?');
+                            } else {
+                                alert('Break finished. Start next session?');
+                            }
+                        }
+                    } else {
+                        // Update display
+                        if (this.data.tab === 'timer') {
+                            this.render(); // Update timer display
+                        }
+                    }
+                }, 1000);
+            },
+
+            stopPomodoroInterval() {
+                if (this.timer.pomodoro.timerInterval) {
+                    clearInterval(this.timer.pomodoro.timerInterval);
+                    this.timer.pomodoro.timerInterval = null;
+                }
+            },
+
+            // Stopwatch
+            startStopwatch() {
+                const sw = this.timer.stopwatch;
+                if (sw.running) return;
+                sw.running = true;
+                this.startStopwatchInterval();
+                this.saveTimer();
+                this.render();
+            },
+
+            pauseStopwatch() {
+                const sw = this.timer.stopwatch;
+                if (!sw.running) return;
+                sw.running = false;
+                this.stopStopwatchInterval();
+                this.saveTimer();
+                this.render();
+            },
+
+            resetStopwatch() {
+                const sw = this.timer.stopwatch;
+                this.stopStopwatchInterval();
+                sw.running = false;
+                sw.elapsed = 0;
+                this.saveTimer();
+                this.render();
+            },
+
+            startStopwatchInterval() {
+                this.stopStopwatchInterval();
+                this.timer.stopwatch.timerInterval = setInterval(() => {
+                    const sw = this.timer.stopwatch;
+                    if (!sw.running) return;
+                    sw.elapsed += 1;
+                    // Optionally add to daily watch time? Only if we want stopwatch to count.
+                    // We'll add it incrementally every minute to reduce overhead.
+                    if (sw.elapsed % 60 === 0) {
+                        // Add 1 minute
+                        this.addWatchTime(60);
+                    }
+                    if (this.data.tab === 'timer') {
+                        this.render();
+                    }
+                }, 1000);
+            },
+
+            stopStopwatchInterval() {
+                if (this.timer.stopwatch.timerInterval) {
+                    clearInterval(this.timer.stopwatch.timerInterval);
+                    this.timer.stopwatch.timerInterval = null;
+                }
+            },
+
+            formatTime(seconds) {
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             },
 
             // ─── EXPORT / IMPORT ───
@@ -1176,18 +1587,16 @@
             // ─── RENDER ─────────────────────────────────────────────────
             render() {
                 const isHome = this.data.tab === 'home';
+                const isTimer = this.data.tab === 'timer';
                 let list = this.data.videos;
 
-                // Filter by category
-                if (!isHome) {
+                if (!isHome && !isTimer) {
                     list = list.filter(v => v.category === this.data.tab);
-                } else {
-                    // Home: show in-progress first
+                } else if (isHome) {
                     list = list.filter(v => v.status === 'in-progress').sort((a, b) => b.lastWatched - a.lastWatched);
                 }
 
-                // Sort for category view
-                if (!isHome) {
+                if (!isHome && !isTimer) {
                     list.sort((a, b) => {
                         const order = { 'in-progress': 0, 'new': 1, 'completed': 2 };
                         if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
@@ -1200,13 +1609,18 @@
                 let html = `
                     <nav class="navbar">
                         <div class="logo"><i data-lucide="book-open" width="20"></i> StudyStream</div>
-                        <button class="btn-add" onclick="app.toggleModal(true)"><i data-lucide="plus" width="16"></i> Add</button>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <button class="theme-toggle" onclick="app.toggleTheme()" style="background:none;border:none;color:var(--text-sec);cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.8rem;">
+                                <i data-lucide="${this.data.theme === 'dark' ? 'moon' : this.data.theme === 'light' ? 'sun' : 'monitor'}"></i>
+                            </button>
+                            <button class="btn-add" onclick="app.toggleModal(true)"><i data-lucide="plus" width="16"></i> Add</button>
+                        </div>
                     </nav>
                     <div class="container fade-in">
                 `;
 
-                // ── Home: Daily Progress ──
-                if (isHome) {
+                // ── Daily Progress (show on home and timer) ──
+                if (isHome || isTimer) {
                     const prog = this.getDailyProgress();
                     const isComplete = prog.isComplete;
                     const watchedMin = Math.floor(prog.watchedSec / 60);
@@ -1214,7 +1628,6 @@
                     const pct = Math.min(prog.percent, 100);
                     const streak = this.daily.streak;
 
-                    // Motivational message
                     let msg = 'Start your study session! 🚀';
                     if (isComplete) {
                         const msgs = [
@@ -1261,20 +1674,21 @@
                         </div>
                     `;
 
-                    // ── Quick Resume ──
-                    const next = this.getNextVideo();
-                    if (next) {
-                        html += `
-                            <div style="margin-bottom:20px;">
-                                <button onclick="app.playVideo('${next.id}')" style="width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius); font-weight:600; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:transform 0.15s;">
-                                    <i data-lucide="play-circle" width="20"></i> Resume Study Session
-                                </button>
-                            </div>
-                        `;
+                    if (isHome) {
+                        const next = this.getNextVideo();
+                        if (next) {
+                            html += `
+                                <div style="margin-bottom:20px;">
+                                    <button onclick="app.playVideo('${next.id}')" style="width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius); font-weight:600; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:transform 0.15s;">
+                                        <i data-lucide="play-circle" width="20"></i> Resume Study Session
+                                    </button>
+                                </div>
+                            `;
+                        }
                     }
                 }
 
-                // ── Dashboard Grid (always show) ──
+                // ── Dashboard Grid (only home) ──
                 if (isHome) {
                     html += `<div class="section-title"><i data-lucide="layout-dashboard" width="18"></i> Dashboard</div>`;
                     html += `<div class="dash-grid">`;
@@ -1296,61 +1710,134 @@
                     html += `</div>`;
                 }
 
-                // ── Video List ──
-                if (!isHome) {
-                    const catName = this.data.tab.charAt(0).toUpperCase() + this.data.tab.slice(1);
-                    const total = this.data.videos.filter(v => v.category === this.data.tab).length;
-                    const left = this.data.videos.filter(v => v.category === this.data.tab && v.status !== 'completed')
-                    .length;
+                // ── Timer Tab ──
+                if (isTimer) {
+                    html += `<div class="timer-container">`;
+                    // Mode tabs
                     html += `
-                        <div class="flex-between" style="margin-bottom:16px;">
-                            <h2 style="text-transform:capitalize;">${catName}</h2>
-                            <span style="color:var(--text-sec);font-size:0.85rem;">${left} remaining · ${total} total</span>
+                        <div class="timer-mode-tabs">
+                            <button class="${this.timer.mode === 'pomodoro' ? 'active' : ''}" onclick="app.setTimerMode('pomodoro')">🍅 Pomodoro</button>
+                            <button class="${this.timer.mode === 'stopwatch' ? 'active' : ''}" onclick="app.setTimerMode('stopwatch')">⏱ Stopwatch</button>
                         </div>
                     `;
-                } else {
-                    html += `<div class="section-title" style="margin-top:8px;"><i data-lucide="clock" width="18"></i> Continue Watching</div>`;
+
+                    if (this.timer.mode === 'pomodoro') {
+                        const p = this.timer.pomodoro;
+                        const total = p.isBreak ? p.breakDuration * 60 : p.workDuration * 60;
+                        const remaining = p.remaining;
+                        const progress = total > 0 ? ((total - remaining) / total) * 100 : 0;
+                        const label = p.isBreak ? 'Break' : 'Focus';
+                        const stateLabel = p.state === 'running' ? '▶' : p.state === 'paused' ? '⏸' : '⏹';
+
+                        html += `
+                            <div class="timer-display">
+                                ${this.formatTime(remaining)}
+                                <span class="label">${label} · ${stateLabel}</span>
+                            </div>
+                            <div style="width:80%;max-width:300px;">
+                                <div class="progress-track"><div class="fill" style="width:${Math.min(progress,100)}%;"></div></div>
+                            </div>
+                            <div class="timer-controls">
+                                ${p.state === 'running' ? 
+                                    `<button class="btn-pause" onclick="app.pausePomodoro()"><i data-lucide="pause"></i> Pause</button>` :
+                                    `<button class="btn-start" onclick="app.startPomodoro()"><i data-lucide="play"></i> ${p.state === 'idle' ? 'Start' : 'Resume'}</button>`
+                                }
+                                <button class="btn-reset" onclick="app.resetPomodoro()"><i data-lucide="refresh-cw"></i> Reset</button>
+                                <button class="btn-skip" onclick="app.skipPomodoro()"><i data-lucide="skip-forward"></i> Skip</button>
+                            </div>
+                            <div class="timer-stats">
+                                <div class="stat"><div class="num">${p.sessionsCompleted}</div><div class="lbl">Sessions</div></div>
+                                <div class="stat"><div class="num">${p.isBreak ? 'Break' : 'Focus'}</div><div class="lbl">Phase</div></div>
+                            </div>
+                            <div class="timer-settings">
+                                <label>Work <input type="number" min="1" max="120" value="${p.workDuration}" onchange="app.timer.pomodoro.workDuration=Math.max(1,parseInt(this.value)||25); app.saveTimer();"></label>
+                                <label>Break <input type="number" min="1" max="30" value="${p.breakDuration}" onchange="app.timer.pomodoro.breakDuration=Math.max(1,parseInt(this.value)||5); app.saveTimer();"></label>
+                            </div>
+                            <p style="font-size:0.8rem;color:var(--text-sec);">Pomodoro sessions automatically count toward your daily goal.</p>
+                        `;
+                    } else {
+                        // Stopwatch
+                        const sw = this.timer.stopwatch;
+                        const elapsed = sw.elapsed;
+                        html += `
+                            <div class="timer-display">
+                                ${this.formatTime(elapsed)}
+                                <span class="label">${sw.running ? '▶ Running' : '⏹ Stopped'}</span>
+                            </div>
+                            <div class="timer-controls">
+                                ${sw.running ? 
+                                    `<button class="btn-pause" onclick="app.pauseStopwatch()"><i data-lucide="pause"></i> Pause</button>` :
+                                    `<button class="btn-start" onclick="app.startStopwatch()"><i data-lucide="play"></i> Start</button>`
+                                }
+                                <button class="btn-reset" onclick="app.resetStopwatch()"><i data-lucide="refresh-cw"></i> Reset</button>
+                            </div>
+                            <div class="timer-stats">
+                                <div class="stat"><div class="num">${Math.floor(elapsed / 60)}m</div><div class="lbl">Elapsed</div></div>
+                            </div>
+                            <p style="font-size:0.8rem;color:var(--text-sec);">Time is added to your daily goal every minute.</p>
+                        `;
+                    }
+                    html += `</div>`;
                 }
 
-                if (list.length === 0) {
-                    const msg = isHome ? 'No videos in progress. Add some lectures to get started!' :
-                        `No videos in ${this.data.tab} yet.`;
-                    html += `<div class="empty-state"><i data-lucide="inbox" width="28" style="display:block;margin:0 auto 8px;color:var(--text-sec);"></i>${msg}</div>`;
-                } else {
-                    list.forEach(v => {
-                        const pct = v.duration ? Math.min((v.progress / v.duration) * 100, 100) : 0;
-                        const statusLabel = v.status === 'completed' ? 'Completed' :
-                            v.status === 'in-progress' ? 'In Progress' : 'New';
-                        const dotClass = v.status === 'completed' ? 'completed' :
-                            v.status === 'in-progress' ? 'in-progress' : 'new';
-                        const isComplete = v.status === 'completed';
+                // ── Video List (home or category) ──
+                if (!isTimer) {
+                    if (!isHome) {
+                        const catName = this.data.tab.charAt(0).toUpperCase() + this.data.tab.slice(1);
+                        const total = this.data.videos.filter(v => v.category === this.data.tab).length;
+                        const left = this.data.videos.filter(v => v.category === this.data.tab && v.status !== 'completed')
+                            .length;
                         html += `
-                            <div class="video-card ${isComplete ? 'completed' : ''}" data-id="${v.id}">
-                                <div class="thumb-box" onclick="app.playVideo('${v.id}')">
-                                    <img src="https://img.youtube.com/vi/${v.id}/hqdefault.jpg" alt="thumbnail" loading="lazy">
-                                    <div class="play-icon"><i data-lucide="play" width="18" fill="currentColor"></i></div>
-                                </div>
-                                <div class="progress-bar"><div class="fill" style="width:${isComplete ? 100 : pct}%"></div></div>
-                                <div class="card-meta">
-                                    <div class="v-info">
-                                        <span class="v-cat">${v.category}</span>
-                                        <h3>${this.getVideoTitle(v.id)}</h3>
-                                        <div class="v-status">
-                                            <span class="dot ${dotClass}"></span>
-                                            ${statusLabel} ${v.duration ? `· ${Math.floor(v.progress)}s / ${Math.floor(v.duration)}s` : ''}
-                                        </div>
-                                    </div>
-                                    <div class="card-actions">
-                                        ${!isComplete ? `<button class="btn-resume" onclick="app.playVideo('${v.id}')">Resume</button>` : ''}
-                                        <button onclick="app.deleteVideo('${v.id}')" title="Delete"><i data-lucide="trash-2" width="16"></i></button>
-                                    </div>
-                                </div>
+                            <div class="flex-between" style="margin-bottom:16px;">
+                                <h2 style="text-transform:capitalize;">${catName}</h2>
+                                <span style="color:var(--text-sec);font-size:0.85rem;">${left} remaining · ${total} total</span>
                             </div>
                         `;
-                    });
+                    } else {
+                        html += `<div class="section-title" style="margin-top:8px;"><i data-lucide="clock" width="18"></i> Continue Watching</div>`;
+                    }
+
+                    if (list.length === 0) {
+                        const msg = isHome ? 'No videos in progress. Add some lectures to get started!' :
+                            `No videos in ${this.data.tab} yet.`;
+                        html +=
+                            `<div class="empty-state"><i data-lucide="inbox" width="28" style="display:block;margin:0 auto 8px;color:var(--text-sec);"></i>${msg}</div>`;
+                    } else {
+                        list.forEach(v => {
+                            const pct = v.duration ? Math.min((v.progress / v.duration) * 100, 100) : 0;
+                            const statusLabel = v.status === 'completed' ? 'Completed' :
+                                v.status === 'in-progress' ? 'In Progress' : 'New';
+                            const dotClass = v.status === 'completed' ? 'completed' :
+                                v.status === 'in-progress' ? 'in-progress' : 'new';
+                            const isComplete = v.status === 'completed';
+                            html += `
+                                <div class="video-card ${isComplete ? 'completed' : ''}" data-id="${v.id}">
+                                    <div class="thumb-box" onclick="app.playVideo('${v.id}')">
+                                        <img src="https://img.youtube.com/vi/${v.id}/hqdefault.jpg" alt="thumbnail" loading="lazy">
+                                        <div class="play-icon"><i data-lucide="play" width="18" fill="currentColor"></i></div>
+                                    </div>
+                                    <div class="progress-bar"><div class="fill" style="width:${isComplete ? 100 : pct}%"></div></div>
+                                    <div class="card-meta">
+                                        <div class="v-info">
+                                            <span class="v-cat">${v.category}</span>
+                                            <h3>${this.getVideoTitle(v.id)}</h3>
+                                            <div class="v-status">
+                                                <span class="dot ${dotClass}"></span>
+                                                ${statusLabel} ${v.duration ? `· ${Math.floor(v.progress)}s / ${Math.floor(v.duration)}s` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="card-actions">
+                                            ${!isComplete ? `<button class="btn-resume" onclick="app.playVideo('${v.id}')">Resume</button>` : ''}
+                                            <button onclick="app.deleteVideo('${v.id}')" title="Delete"><i data-lucide="trash-2" width="16"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
                 }
 
-                // ── Export / Import ──
+                // ── Export / Import (only home) ──
                 if (isHome) {
                     html += `
                         <div style="margin-top:32px; border-top:1px solid #e2e8f0; padding-top:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between;">
@@ -1410,15 +1897,22 @@
                 // ── Bottom Nav ──
                 html += `
                     <div class="btm-nav">
-                        ${['home','physics','chemistry','biology'].map(t => {
-                            const icon = t === 'home' ? 'home' : t === 'physics' ? 'atom' : t === 'chemistry' ? 'flask-conical' : 'dna';
+                        ${['home','physics','chemistry','biology','timer'].map(t => {
+                            const iconMap = {
+                                home: 'home',
+                                physics: 'atom',
+                                chemistry: 'flask-conical',
+                                biology: 'dna',
+                                timer: 'timer'
+                            };
+                            const icon = iconMap[t] || 'circle';
                             const isActive = this.data.tab === t;
-                            const left = t !== 'home' ? this.data.videos.filter(v => v.category === t && v.status !== 'completed').length : 0;
+                            const left = t !== 'home' && t !== 'timer' ? this.data.videos.filter(v => v.category === t && v.status !== 'completed').length : 0;
                             return `
                                 <button class="btm-btn ${isActive ? 'active' : ''}" onclick="app.setTab('${t}')">
                                     <i data-lucide="${icon}" width="20"></i>
                                     <span style="text-transform:capitalize">${t === 'home' ? 'Home' : t}</span>
-                                    ${left > 0 && t !== 'home' ? `<span style="font-size:0.55rem;background:var(--primary);color:#fff;border-radius:99px;padding:0 6px;line-height:14px;">${left}</span>` : ''}
+                                    ${left > 0 && t !== 'home' && t !== 'timer' ? `<span style="font-size:0.55rem;background:var(--primary);color:#fff;border-radius:99px;padding:0 6px;line-height:14px;">${left}</span>` : ''}
                                 </button>
                             `;
                         }).join('')}
@@ -1428,7 +1922,6 @@
                 document.getElementById('app').innerHTML = html;
                 lucide.createIcons();
 
-                // ── Auto-focus link box if modal open ──
                 if (this.data.modalOpen) {
                     setTimeout(() => {
                         const box = document.getElementById('linkBox');
@@ -1440,18 +1933,15 @@
 
         // ─── BOOT ───
         window.onload = () => {
-            // Wait for YouTube API to be ready
             if (typeof YT !== 'undefined' && YT.loaded) {
                 app.init();
             } else {
-                // If API not loaded, wait for it
                 const checkYT = setInterval(() => {
                     if (typeof YT !== 'undefined' && YT.loaded) {
                         clearInterval(checkYT);
                         app.init();
                     }
                 }, 200);
-                // Fallback: init after 3s anyway
                 setTimeout(() => {
                     if (!app.daily.todayDate) {
                         app.init();
@@ -1459,7 +1949,11 @@
                 }, 3000);
             }
 
-            // Service worker
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/study-stream/sw.js')
@@ -1469,8 +1963,7 @@
             }
         };
 
-        // ─── Expose to global ───
         window.app = app;
     </script>
 </body>
-  </html>
+    </html>
