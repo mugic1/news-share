@@ -725,6 +725,10 @@
             font-size: 0.85rem;
             text-align: center;
         }
+        .timer-settings input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
         /* ─── BOTTOM NAV ─── */
         .btm-nav {
@@ -874,10 +878,9 @@
                 addCat: 'physics',
                 goalModal: false,
                 goalInput: 30,
-                theme: 'auto', // 'auto', 'light', 'dark'
+                theme: 'auto',
             },
 
-            // ─── Daily tracking ───
             daily: {
                 dailyGoal: 30,
                 streak: 0,
@@ -887,20 +890,19 @@
                 lastStreakDate: '',
             },
 
-            // ─── Timer state ───
             timer: {
-                mode: 'pomodoro', // 'pomodoro' or 'stopwatch'
+                mode: 'pomodoro',
                 pomodoro: {
-                    workDuration: 25, // minutes
+                    workDuration: 25,
                     breakDuration: 5,
-                    remaining: 25 * 60, // seconds
-                    state: 'idle', // 'idle', 'running', 'paused'
+                    remaining: 25 * 60,
+                    state: 'idle', // idle, running, paused
                     isBreak: false,
                     sessionsCompleted: 0,
                     timerInterval: null,
                 },
                 stopwatch: {
-                    elapsed: 0, // seconds
+                    elapsed: 0,
                     running: false,
                     timerInterval: null,
                 },
@@ -924,19 +926,19 @@
                 this.applyTheme();
                 this.checkDayReset();
                 this.render();
-                // Listen for visibility change to save progress
+
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
                         this.saveDaily();
                         this.saveTimer();
                     }
                 });
-                // Auto-save daily every 30s
+
                 setInterval(() => {
                     this.saveDaily();
                     this.saveTimer();
                 }, 30000);
-                // Save timer state on page unload
+
                 window.addEventListener('beforeunload', () => {
                     this.saveTimer();
                 });
@@ -978,20 +980,23 @@
                 if (raw) {
                     try {
                         const t = JSON.parse(raw);
-                        // Merge carefully
                         if (t.mode) this.timer.mode = t.mode;
                         if (t.pomodoro) {
-                            Object.assign(this.timer.pomodoro, t.pomodoro);
-                            // Restore timer interval? No, we'll restart only if running
-                            this.timer.pomodoro.timerInterval = null;
+                            const p = t.pomodoro;
+                            // Keep intervals null
+                            p.timerInterval = null;
+                            // Ensure remaining is set
+                            if (p.remaining === undefined) p.remaining = p.workDuration * 60;
+                            Object.assign(this.timer.pomodoro, p);
+                            // If state was running, restart interval
                             if (this.timer.pomodoro.state === 'running') {
-                                // We need to restart the interval
                                 this.startPomodoroInterval();
                             }
                         }
                         if (t.stopwatch) {
-                            Object.assign(this.timer.stopwatch, t.stopwatch);
-                            this.timer.stopwatch.timerInterval = null;
+                            const sw = t.stopwatch;
+                            sw.timerInterval = null;
+                            Object.assign(this.timer.stopwatch, sw);
                             if (this.timer.stopwatch.running) {
                                 this.startStopwatchInterval();
                             }
@@ -1001,7 +1006,6 @@
             },
 
             saveTimer() {
-                // Save a copy without the interval references
                 const toSave = {
                     mode: this.timer.mode,
                     pomodoro: { ...this.timer.pomodoro, timerInterval: null },
@@ -1027,10 +1031,6 @@
                 } else {
                     root.setAttribute('data-theme', this.data.theme);
                 }
-                // Also update icon if rendered
-                if (document.querySelector('.theme-toggle')) {
-                    this.render(); // re-render to update icon
-                }
             },
 
             toggleTheme() {
@@ -1044,7 +1044,6 @@
                 return new Date().toISOString().slice(0, 10);
             },
 
-            // ─── Day rollover ───
             checkDayReset() {
                 const today = this.getToday();
                 if (this.daily.todayDate !== today) {
@@ -1061,21 +1060,17 @@
                     this.daily.todayDate = today;
                     this.daily.lastActiveDate = today;
                     this.saveDaily();
-                    // Also reset timer sessions? Not necessary.
                 }
             },
 
-            // ─── Add watch time ───
             addWatchTime(seconds) {
                 if (seconds <= 0) return;
                 this.daily.todayWatchSeconds += seconds;
                 this.daily.lastActiveDate = this.getToday();
                 this.saveDaily();
-                // Re-render if on home or timer (to update daily progress)
                 if (this.data.tab === 'home' || this.data.tab === 'timer') this.render();
             },
 
-            // ─── Get daily progress ───
             getDailyProgress() {
                 const goalSec = this.daily.dailyGoal * 60;
                 const watched = Math.min(this.daily.todayWatchSeconds, goalSec);
@@ -1090,7 +1085,6 @@
                 };
             },
 
-            // ─── Set goal ───
             setGoal(minutes) {
                 if (minutes < 1) minutes = 1;
                 if (minutes > 480) minutes = 480;
@@ -1100,9 +1094,7 @@
                 this.render();
             },
 
-            // ─── Navigation ───
             setTab(t) {
-                // If switching away from timer, save timer state
                 if (this.data.tab === 'timer' && t !== 'timer') {
                     this.saveTimer();
                 }
@@ -1128,7 +1120,6 @@
                 this.render();
             },
 
-            // ─── Add videos ───
             addVideos() {
                 const input = document.getElementById('linkBox');
                 if (!input) return;
@@ -1380,12 +1371,19 @@
 
             setTimerMode(mode) {
                 if (this.timer.mode === mode) return;
-                // Save current timer state before switching
                 this.saveTimer();
                 this.timer.mode = mode;
-                // Ensure timers are stopped
+                // Ensure intervals are stopped for the old mode
                 this.stopPomodoroInterval();
                 this.stopStopwatchInterval();
+                // If switching to pomodoro, reset to idle if needed
+                if (mode === 'pomodoro') {
+                    const p = this.timer.pomodoro;
+                    if (p.state === 'running') {
+                        p.state = 'idle';
+                        this.stopPomodoroInterval();
+                    }
+                }
                 this.render();
             },
 
@@ -1393,12 +1391,11 @@
             startPomodoro() {
                 const p = this.timer.pomodoro;
                 if (p.state === 'running') return;
-                // If idle or paused, start
-                p.state = 'running';
-                if (p.remaining <= 0) {
-                    // Reset to work duration if break not set
+                // If idle and remaining is 0, reset to current phase
+                if (p.state === 'idle' && p.remaining <= 0) {
                     p.remaining = p.isBreak ? p.breakDuration * 60 : p.workDuration * 60;
                 }
+                p.state = 'running';
                 this.startPomodoroInterval();
                 this.saveTimer();
                 this.render();
@@ -1425,11 +1422,22 @@
 
             skipPomodoro() {
                 const p = this.timer.pomodoro;
-                if (p.state === 'idle') return;
-                // If running or paused, skip to next phase
+                if (p.state === 'idle') {
+                    // If idle, just switch phase without adding time
+                    if (!p.isBreak) {
+                        p.isBreak = true;
+                        p.remaining = p.breakDuration * 60;
+                    } else {
+                        p.isBreak = false;
+                        p.remaining = p.workDuration * 60;
+                    }
+                    this.saveTimer();
+                    this.render();
+                    return;
+                }
+                // Running or paused: add time spent so far
                 this.stopPomodoroInterval();
                 if (!p.isBreak) {
-                    // Work completed, add time to daily
                     const workTime = p.workDuration * 60 - p.remaining;
                     if (workTime > 0) {
                         this.addWatchTime(workTime);
@@ -1446,6 +1454,24 @@
                 this.render();
             },
 
+            updatePomodoroSetting(type, value) {
+                const p = this.timer.pomodoro;
+                if (type === 'work') {
+                    p.workDuration = Math.max(1, Math.min(120, value));
+                    // If idle and not break, reset remaining to new work duration
+                    if (p.state === 'idle' && !p.isBreak) {
+                        p.remaining = p.workDuration * 60;
+                    }
+                } else if (type === 'break') {
+                    p.breakDuration = Math.max(1, Math.min(30, value));
+                    if (p.state === 'idle' && p.isBreak) {
+                        p.remaining = p.breakDuration * 60;
+                    }
+                }
+                this.saveTimer();
+                this.render();
+            },
+
             startPomodoroInterval() {
                 this.stopPomodoroInterval();
                 this.timer.pomodoro.timerInterval = setInterval(() => {
@@ -1453,21 +1479,16 @@
                     if (p.state !== 'running') return;
                     p.remaining -= 1;
                     if (p.remaining <= 0) {
-                        // Timer finished
                         this.stopPomodoroInterval();
                         if (!p.isBreak) {
                             // Work session completed
                             this.addWatchTime(p.workDuration * 60);
                             p.sessionsCompleted += 1;
-                            // Start break automatically
                             p.isBreak = true;
                             p.remaining = p.breakDuration * 60;
-                            p.state = 'idle'; // idle so user can start break manually or auto-start
-                            // We can auto-start break if desired: p.state = 'running'; this.startPomodoroInterval();
-                            // But we'll let user start break manually.
+                            p.state = 'idle';
                             this.saveTimer();
                             this.render();
-                            // Notify
                             if (Notification.permission === 'granted') {
                                 new Notification('Study session complete! Time for a break 🎉');
                             } else {
@@ -1487,9 +1508,8 @@
                             }
                         }
                     } else {
-                        // Update display
                         if (this.data.tab === 'timer') {
-                            this.render(); // Update timer display
+                            this.render();
                         }
                     }
                 }, 1000);
@@ -1536,10 +1556,7 @@
                     const sw = this.timer.stopwatch;
                     if (!sw.running) return;
                     sw.elapsed += 1;
-                    // Optionally add to daily watch time? Only if we want stopwatch to count.
-                    // We'll add it incrementally every minute to reduce overhead.
                     if (sw.elapsed % 60 === 0) {
-                        // Add 1 minute
                         this.addWatchTime(60);
                     }
                     if (this.data.tab === 'timer') {
@@ -1605,7 +1622,6 @@
                     });
                 }
 
-                // ── Build HTML ──
                 let html = `
                     <nav class="navbar">
                         <div class="logo"><i data-lucide="book-open" width="20"></i> StudyStream</div>
@@ -1619,7 +1635,7 @@
                     <div class="container fade-in">
                 `;
 
-                // ── Daily Progress (show on home and timer) ──
+                // ── Daily Progress (home & timer) ──
                 if (isHome || isTimer) {
                     const prog = this.getDailyProgress();
                     const isComplete = prog.isComplete;
@@ -1688,7 +1704,7 @@
                     }
                 }
 
-                // ── Dashboard Grid (only home) ──
+                // ── Dashboard Grid (home only) ──
                 if (isHome) {
                     html += `<div class="section-title"><i data-lucide="layout-dashboard" width="18"></i> Dashboard</div>`;
                     html += `<div class="dash-grid">`;
@@ -1750,8 +1766,12 @@
                                 <div class="stat"><div class="num">${p.isBreak ? 'Break' : 'Focus'}</div><div class="lbl">Phase</div></div>
                             </div>
                             <div class="timer-settings">
-                                <label>Work <input type="number" min="1" max="120" value="${p.workDuration}" onchange="app.timer.pomodoro.workDuration=Math.max(1,parseInt(this.value)||25); app.saveTimer();"></label>
-                                <label>Break <input type="number" min="1" max="30" value="${p.breakDuration}" onchange="app.timer.pomodoro.breakDuration=Math.max(1,parseInt(this.value)||5); app.saveTimer();"></label>
+                                <label>Work <input type="number" min="1" max="120" value="${p.workDuration}" 
+                                    onchange="app.updatePomodoroSetting('work', parseInt(this.value)||25)" 
+                                    ${p.state === 'running' ? 'disabled' : ''}></label>
+                                <label>Break <input type="number" min="1" max="30" value="${p.breakDuration}" 
+                                    onchange="app.updatePomodoroSetting('break', parseInt(this.value)||5)"
+                                    ${p.state === 'running' ? 'disabled' : ''}></label>
                             </div>
                             <p style="font-size:0.8rem;color:var(--text-sec);">Pomodoro sessions automatically count toward your daily goal.</p>
                         `;
@@ -1837,7 +1857,7 @@
                     }
                 }
 
-                // ── Export / Import (only home) ──
+                // ── Export / Import (home only) ──
                 if (isHome) {
                     html += `
                         <div style="margin-top:32px; border-top:1px solid #e2e8f0; padding-top:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between;">
@@ -1949,7 +1969,6 @@
                 }, 3000);
             }
 
-            // Request notification permission
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
