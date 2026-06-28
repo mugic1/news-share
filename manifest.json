@@ -1,0 +1,16 @@
+{
+  "name": "StudyStream App",
+  "short_name": "StudyStream",
+  "description": "Track your study videos securely.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/4/4f/YouTube_social_white_squircle.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
