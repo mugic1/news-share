@@ -1,0 +1,81 @@
+:root {
+    --bg-color: #f4f4f9;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --primary-color: #6366f1;
+    --secondary-text: #666666;
+    --nav-bg: #ffffff;
+    --border-color: #dddddd;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #121212;
+        --card-bg: #1e1e1e;
+        --text-color: #f0f0f0;
+        --primary-color: #818cf8;
+        --secondary-text: #aaaaaa;
+        --nav-bg: #1e1e1e;
+        --border-color: #333333;
+    }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: var(--bg-color); color: var(--text-color); padding-bottom: 70px; }
+
+header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color);
+}
+.logo { display: flex; align-items: center; gap: 10px; color: var(--primary-color); }
+header button { background: none; border: none; color: var(--primary-color); cursor: pointer; }
+
+main { padding: 20px; }
+.view { display: none; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Dashboard Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; margin-top: 15px; }
+.stat-card { background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border-color); }
+
+/* Video Cards */
+.video-list { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; }
+.video-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid var(--border-color); position: relative; }
+.thumb { width: 100%; height: 180px; object-fit: cover; cursor: pointer; }
+.card-info { padding: 12px; }
+.card-info h4 { font-size: 14px; margin-bottom: 5px; }
+.status-badge { font-size: 12px; padding: 3px 8px; border-radius: 12px; background: #e0e7ff; color: #3730a3; display: inline-block; margin-bottom: 8px;}
+.delete-btn { position: absolute; right: 10px; bottom: 10px; background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+
+/* Progress Bar */
+.progress-container { width: 100%; background: #ddd; height: 6px; border-radius: 3px; margin-top: 10px; overflow: hidden;}
+.progress-bar { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s; }
+
+/* Bottom Nav */
+.bottom-nav {
+    position: fixed; bottom: 0; width: 100%; background: var(--nav-bg); border-top: 1px solid var(--border-color);
+    display: flex; justify-content: space-around; padding: 10px 0; z-index: 100;
+}
+.nav-item { display: flex; flex-direction: column; align-items: center; color: var(--secondary-text); font-size: 12px; cursor: pointer; }
+.nav-item.active { color: var(--primary-color); }
+
+/* Modals */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 200;}
+.modal-content { background: var(--card-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
+.modal-content input, .modal-content select { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.modal-actions button { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer;}
+.btn-cancel { background: #ccc; }
+.btn-save { background: var(--primary-color); color: white; }
+
+/* Settings */
+.settings-card { background: var(--card-bg); padding: 20px; border-radius: 12px; margin-top: 15px; }
+.settings-card button { display: block; width: 100%; padding: 12px; margin-top: 10px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; }
+
+/* Fullscreen Player */
+.player-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9999; flex-direction: column; }
+.player-header { display: flex; justify-content: space-between; padding: 15px; background: rgba(0,0,0,0.7); }
+.player-header button { background: none; border: none; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.player-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; }
+#youtube-player { width: 100%; height: 100%; }
