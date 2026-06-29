@@ -1,115 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StudyStream</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
-    <link rel="stylesheet" href="style.css">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PeerDrop Ultra</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-
-    <!-- Header -->
-    <header>
-        <div class="logo">
-            <i data-lucide="book-open"></i>
-            <h2>StudyStream</h2>
-        </div>
-        <button id="add-video-btn"><i data-lucide="plus-circle"></i></button>
-    </header>
-
-    <!-- Main Content Areas -->
-    <main id="main-content">
-        <!-- Dashboard / Home -->
-        <section id="view-home" class="view active">
-            <h3>Dashboard</h3>
-            <div class="stats-grid">
-                <div class="stat-card" onclick="switchTab('physics')">
-                    <h4>Physics</h4>
-                    <p id="stat-phy">0 Videos</p>
-                </div>
-                <div class="stat-card" onclick="switchTab('chemistry')">
-                    <h4>Chemistry</h4>
-                    <p id="stat-chem">0 Videos</p>
-                </div>
-                <div class="stat-card" onclick="switchTab('biology')">
-                    <h4>Biology</h4>
-                    <p id="stat-bio">0 Videos</p>
-                </div>
-            </div>
-            
-            <h3 style="margin-top: 20px;">Continue Watching</h3>
-            <div id="continue-watching-list" class="video-list"></div>
-        </section>
-
-        <!-- Category Views -->
-        <section id="view-physics" class="view">
-            <h3>Physics</h3>
-            <div id="physics-list" class="video-list"></div>
-        </section>
-        <section id="view-chemistry" class="view">
-            <h3>Chemistry</h3>
-            <div id="chemistry-list" class="video-list"></div>
-        </section>
-        <section id="view-biology" class="view">
-            <h3>Biology</h3>
-            <div id="biology-list" class="video-list"></div>
-        </section>
-        
-        <!-- Settings / Data Management -->
-        <section id="view-settings" class="view">
-            <h3>Data Management</h3>
-            <div class="settings-card">
-                <p>Backup or restore your library data.</p>
-                <button onclick="exportData()"><i data-lucide="download"></i> Export JSON Backup</button>
-                <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
-                <button onclick="document.getElementById('import-file').click()"><i data-lucide="upload"></i> Import Data</button>
-            </div>
-        </section>
-    </main>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('home')"><i data-lucide="home"></i><span>Home</span></div>
-        <div class="nav-item" onclick="switchTab('physics')"><i data-lucide="atom"></i><span>Physics</span></div>
-        <div class="nav-item" onclick="switchTab('chemistry')"><i data-lucide="flask-conical"></i><span>Chemistry</span></div>
-        <div class="nav-item" onclick="switchTab('biology')"><i data-lucide="dna"></i><span>Biology</span></div>
-        <div class="nav-item" onclick="switchTab('settings')"><i data-lucide="settings"></i><span>Settings</span></div>
-    </nav>
-
-    <!-- Add Video Modal -->
-    <div id="add-modal" class="modal">
-        <div class="modal-content">
-            <h3>Add New Video</h3>
-            <input type="text" id="yt-link" placeholder="Paste YouTube Link here...">
-            <select id="video-category">
-                <option value="physics">Physics</option>
-                <option value="chemistry">Chemistry</option>
-                <option value="biology">Biology</option>
-            </select>
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-                <button class="btn-save" onclick="saveVideo()">Import</button>
-            </div>
-        </div>
+  <div class="app">
+    <div class="topbar">
+      <h1>⚡ PeerDrop Ultra</h1>
+      <p>Super‑fast P2P file sharing</p>
     </div>
 
-    <!-- Fullscreen Video Player Overlay -->
-    <div id="player-overlay" class="player-overlay">
-        <div class="player-header">
-            <button onclick="closePlayer()"><i data-lucide="x"></i> Close</button>
-            <button onclick="toggleFullscreen()"><i data-lucide="maximize"></i></button>
-        </div>
-        <div class="player-wrapper">
-            <div id="youtube-player"></div>
-        </div>
+    <div class="card">
+      <h2>Your ID</h2>
+      <div id="peerId" class="peer-box">Generating…</div>
+      <canvas id="qrCanvas"></canvas>
     </div>
 
-    <!-- YouTube IFrame API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="app.js"></script>
+    <div class="card">
+      <h2>Connect</h2>
+      <input type="text" id="peerInput" placeholder="Enter Peer ID" />
+      <div class="btns">
+        <button id="connectBtn">Connect</button>
+        <button id="scanBtn">Scan QR</button>
+      </div>
+      <div id="reader"></div>
+    </div>
+
+    <div class="card">
+      <div id="status">Disconnected</div>
+      <div id="messages"></div>
+      <div class="chat-box">
+        <input type="text" id="messageInput" placeholder="Type message" />
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>
+        Files
+        <span id="speedDisplay"></span>
+      </h2>
+      <div id="dropzone">Drop Files Here</div>
+      <input type="file" id="fileInput" multiple />
+      <div class="btns">
+        <button id="sendFilesBtn">Send Files</button>
+        <button id="downloadAllBtn">Download ZIP</button>
+      </div>
+      <div id="transfers"></div>
+      <div id="downloads"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
