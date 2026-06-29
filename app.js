@@ -1,215 +1,304 @@
-lucide.createIcons(); // Initialize Icons
+// ─── DOM refs ───────────────────────────────────────────────
+const peerIdDiv = document.getElementById("peerId");
+const peerInput = document.getElementById("peerInput");
+const connectBtn = document.getElementById("connectBtn");
+const statusDiv = document.getElementById("status");
+const sendBtn = document.getElementById("sendBtn");
+const messageInput = document.getElementById("messageInput");
+const messagesDiv = document.getElementById("messages");
+const fileInput = document.getElementById("fileInput");
+const sendFilesBtn = document.getElementById("sendFilesBtn");
+const transfersDiv = document.getElementById("transfers");
+const downloadsDiv = document.getElementById("downloads");
+const downloadAllBtn = document.getElementById("downloadAllBtn");
+const dropzone = document.getElementById("dropzone");
+const speedDisplay = document.getElementById("speedDisplay");
 
-let videos = JSON.parse(localStorage.getItem('studyStream_videos')) || [];
-let player;
-let currentVideoId = null;
-let progressInterval;
+// ─── TURBO CHUNK & BUFFER SETTINGS ────────────────────────
+const CHUNK_SIZE = 16 * 1024 * 1024;          // 16 MB base chunk
+const HIGH_WATER = 128 * 1024 * 1024;         // pause above 128 MB
+const LOW_WATER = 16 * 1024 * 1024;           // resume below 16 MB
 
-// -- NAVIGATION --
-function switchTab(tabId) {
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    
-    document.getElementById(`view-${tabId}`).classList.add('active');
-    event.currentTarget.classList.add('active');
-    renderUI();
+let conn;
+let reconnectId = "";
+let receivedFiles = [];
+let incomingFiles = {};
+
+// ─── Speed tracking ────────────────────────────────────────
+let speedBytes = 0;
+let speedLastUpdate = performance.now();
+
+function updateSpeedDisplay(bytesSent) {
+  speedBytes += bytesSent;
+  const now = performance.now();
+  if (now - speedLastUpdate > 500) {
+    const mbps = (speedBytes / (now - speedLastUpdate)) * 8 / 1e6;
+    speedDisplay.textContent =
+      mbps > 1
+        ? `${mbps.toFixed(1)} Mbps`
+        : `${(speedBytes / (now - speedLastUpdate) * 1e3 / 1e6).toFixed(1)} MB/s`;
+    speedBytes = 0;
+    speedLastUpdate = now;
+  }
 }
 
-// -- DATA MANAGEMENT --
-function saveToStorage() {
-    localStorage.setItem('studyStream_videos', JSON.stringify(videos));
-    renderUI();
-}
+// ─── PeerJS ─────────────────────────────────────────────────
+const peer = new Peer({
+  config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
+});
 
-// -- UI RENDERING --
-function renderUI() {
-    let phy = [], chem = [], bio = [], inProgress = [];
-    
-    videos.forEach(v => {
-        if (v.category === 'physics') phy.push(v);
-        if (v.category === 'chemistry') chem.push(v);
-        if (v.category === 'biology') bio.push(v);
-        if (v.status === 'In Progress') inProgress.push(v);
-    });
+peer.on("open", (id) => {
+  peerIdDiv.innerText = id;
+  QRCode.toCanvas(document.getElementById("qrCanvas"), id, { width: 220 });
+});
 
-    document.getElementById('stat-phy').innerText = `${phy.length} Videos`;
-    document.getElementById('stat-chem').innerText = `${chem.length} Videos`;
-    document.getElementById('stat-bio').innerText = `${bio.length} Videos`;
+peer.on("connection", (connection) => setupConnection(connection));
 
-    inProgress.sort((a, b) => b.lastWatched - a.lastWatched); // Smart sorting
+// ─── Connection setup ──────────────────────────────────────
+function setupConnection(connection) {
+  conn = connection;
+  reconnectId = connection.peer;
 
-    renderList('continue-watching-list', inProgress);
-    renderList('physics-list', phy);
-    renderList('chemistry-list', chem);
-    renderList('biology-list', bio);
-}
+  conn.on("open", () => { statusDiv.innerText = "Connected"; });
+  conn.on("close", () => { statusDiv.innerText = "Disconnected";
+    autoReconnect(); });
+  conn.on("error", () => { autoReconnect(); });
 
-function renderList(elementId, list) {
-    const container = document.getElementById(elementId);
-    container.innerHTML = '';
-    
-    if(list.length === 0) {
-        container.innerHTML = '<p style="color: var(--secondary-text); text-align: center;">No videos found.</p>';
-        return;
+  conn.on("data", (data) => {
+    if (data.type === "message") {
+      addMessage("Peer: " + data.text);
     }
-
-    list.forEach(v => {
-        let percent = v.duration ? (v.progress / v.duration) * 100 : 0;
-        const card = document.createElement('div');
-        card.className = 'video-card';
-        card.innerHTML = `
-            <img src="https://img.youtube.com/vi/${v.ytId}/hqdefault.jpg" class="thumb" onclick="openPlayer('${v.id}')">
-            <div class="card-info">
-                <span class="status-badge">${v.status}</span>
-                <h4>${v.title}</h4>
-                <div class="progress-container"><div class="progress-bar" style="width: ${percent}%"></div></div>
-                <button class="delete-btn" onclick="deleteVideo('${v.id}')"><i data-lucide="trash-2" style="width:16px;"></i></button>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-    lucide.createIcons();
-}
-
-// -- ADD & DELETE VIDEO --
-document.getElementById('add-video-btn').onclick = () => document.getElementById('add-modal').style.display = 'flex';
-function closeModal() { document.getElementById('add-modal').style.display = 'none'; }
-
-function extractYTId(url) {
-    let match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?\n]{11})/);
-    return match ? match[1] : null;
-}
-
-async function saveVideo() {
-    const link = document.getElementById('yt-link').value;
-    const category = document.getElementById('video-category').value;
-    const ytId = extractYTId(link);
-
-    if (!ytId) return alert('Invalid YouTube URL');
-    if (videos.some(v => v.ytId === ytId)) return alert('Video is already in your library!');
-
-    // Fetch Title using oEmbed
-    let title = "Unknown Title";
-    try {
-        const res = await fetch(`https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v=${ytId}&format=json`);
-        const data = await res.json();
-        title = data.title;
-    } catch(e) {} // Fallback to unknown if API fails due to CORS
-
-    videos.unshift({
-        id: Date.now().toString(),
-        ytId, title, category,
-        progress: 0, duration: 0,
-        status: 'New',
-        addedAt: Date.now(),
-        lastWatched: Date.now()
-    });
-
-    document.getElementById('yt-link').value = '';
-    closeModal();
-    saveToStorage();
-}
-
-function deleteVideo(id) {
-    if(confirm("Are you sure you want to remove this video?")) {
-        videos = videos.filter(v => v.id !== id);
-        saveToStorage();
+    if (data.type === "file-meta") {
+      incomingFiles[data.fileId] = {
+        name: data.name,
+        size: data.size,
+        mime: data.mime,
+        chunks: [],
+        received: 0
+      };
+      createProgress(data.fileId, data.name);
     }
-}
-
-// -- YOUTUBE PLAYER & TRACKING --
-function onYouTubeIframeAPIReady() {
-    player = new YT.Player('youtube-player', {
-        height: '100%', width: '100%',
-        playerVars: { 'autoplay': 1, 'controls': 1, 'playsinline': 1 },
-        events: { 'onStateChange': onPlayerStateChange }
-    });
-}
-
-function openPlayer(id) {
-    const video = videos.find(v => v.id === id);
-    if (!video) return;
-    
-    currentVideoId = id;
-    document.getElementById('player-overlay').style.display = 'flex';
-    
-    if (player && player.loadVideoById) {
-        player.loadVideoById({videoId: video.ytId, startSeconds: video.progress});
+    if (data.type === "file-chunk") {
+      const file = incomingFiles[data.fileId];
+      if (!file) return;
+      file.chunks.push(data.chunk);
+      file.received += data.chunk.byteLength;
+      const percent = Math.floor((file.received / file.size) * 100);
+      updateProgress(data.fileId, percent);
+      if (file.received >= file.size) {
+        const blob = new Blob(file.chunks, { type: file.mime });
+        receivedFiles.push({ name: file.name, blob });
+        showDownload(file.name, blob, file.mime);
+        delete incomingFiles[data.fileId];
+      }
     }
+  });
 }
 
-function onPlayerStateChange(event) {
-    if (event.data == YT.PlayerState.PLAYING) {
-        progressInterval = setInterval(updateProgress, 1000);
-    } else {
-        clearInterval(progressInterval);
-    }
-    
-    if (event.data == YT.PlayerState.ENDED) {
-        let v = videos.find(v => v.id === currentVideoId);
-        if(v) { v.status = 'Completed'; v.progress = v.duration; saveToStorage(); }
-        closePlayer();
-    }
+// ─── Reconnect ─────────────────────────────────────────────
+function autoReconnect() {
+  if (!reconnectId) return;
+  statusDiv.innerText = "Reconnecting…";
+  setTimeout(() => {
+    const connection = peer.connect(reconnectId, { reliable: true });
+    setupConnection(connection);
+  }, 2000);
 }
 
-function updateProgress() {
-    if (!currentVideoId || !player) return;
-    let v = videos.find(v => v.id === currentVideoId);
-    if(v) {
-        v.progress = player.getCurrentTime();
-        v.duration = player.getDuration();
-        v.lastWatched = Date.now();
-        if(v.status === 'New') v.status = 'In Progress';
-        // Auto mark complete if > 98%
-        if(v.progress / v.duration > 0.98) v.status = 'Completed';
-        saveToStorage();
-    }
+connectBtn.onclick = () => {
+  const id = peerInput.value.trim();
+  if (!id) return;
+  const connection = peer.connect(id, { reliable: true });
+  setupConnection(connection);
+};
+
+// ─── Messaging ─────────────────────────────────────────────
+function addMessage(text, self = false) {
+  const div = document.createElement("div");
+  div.className = "message" + (self ? " self" : "");
+  div.innerText = text;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function closePlayer() {
-    if (player && player.pauseVideo) player.pauseVideo();
-    clearInterval(progressInterval);
-    document.getElementById('player-overlay').style.display = 'none';
-    currentVideoId = null;
-    renderUI();
+sendBtn.onclick = () => {
+  const text = messageInput.value.trim();
+  if (!text || !conn) return;
+  conn.send({ type: "message", text });
+  addMessage("You: " + text, true);
+  messageInput.value = "";
+};
+
+// ─── Progress UI ───────────────────────────────────────────
+function createProgress(id, name) {
+  const div = document.createElement("div");
+  div.className = "progress-wrap";
+  div.innerHTML = `
+    <p>${name}</p>
+    <div class="progress">
+      <div class="progress-bar" id="bar-${id}"></div>
+    </div>
+  `;
+  transfersDiv.appendChild(div);
 }
 
-function toggleFullscreen() {
-    const overlay = document.getElementById('player-overlay');
-    if (!document.fullscreenElement) {
-        overlay.requestFullscreen().catch(err => alert("Fullscreen unsupported"));
-    } else {
-        document.exitFullscreen();
-    }
+function updateProgress(id, percent) {
+  const bar = document.getElementById(`bar-${id}`);
+  if (bar) bar.style.width = percent + "%";
 }
 
-// -- EXPORT & IMPORT --
-function exportData() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(videos));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", "StudyStream_Backup.json");
-    dlAnchorElem.click();
-}
+// ─── SUPER‑FAST BACK‑PRESSURE ─────────────────────────────
+async function waitForBuffer(dataChannel) {
+  if (!dataChannel) return;
+  while (dataChannel.bufferedAmount > HIGH_WATER) {
+    await new Promise((resolve) => {
+      let resolved = false;
 
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            videos = JSON.parse(e.target.result);
-            saveToStorage();
-            alert("Data imported successfully!");
-        } catch(err) { alert("Invalid Backup File!"); }
-    };
-    reader.readAsText(file);
-}
+      const onLow = () => {
+        if (!resolved) {
+          resolved = true;
+          dataChannel.removeEventListener("bufferedamountlow", onLow);
+          resolve();
+        }
+      };
+      dataChannel.addEventListener("bufferedamountlow", onLow, { once: true });
 
-// Initialize
-renderUI();
-
-// Service worker registration
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => console.log("Service Worker Registered"));
+      // Poll every 2 ms – nearly zero delay
+      const interval = setInterval(() => {
+        if (dataChannel.bufferedAmount <= HIGH_WATER) {
+          clearInterval(interval);
+          if (!resolved) {
+            resolved = true;
+            dataChannel.removeEventListener("bufferedamountlow", onLow);
+            resolve();
           }
+        }
+      }, 2);
+
+      // Safety net: resolve after 2 seconds
+      setTimeout(() => {
+        clearInterval(interval);
+        if (!resolved) {
+          resolved = true;
+          dataChannel.removeEventListener("bufferedamountlow", onLow);
+          resolve();
+        }
+      }, 2000);
+    });
+  }
+}
+
+// ─── SEND FILE – TURBO ─────────────────────────────────────
+async function sendFile(file) {
+  const fileId = crypto.randomUUID();
+  createProgress(fileId, file.name);
+
+  conn.send({
+    type: "file-meta",
+    fileId,
+    name: file.name,
+    size: file.size,
+    mime: file.type
+  });
+
+  let offset = 0;
+  let sent = 0;
+  const dataChannel = conn.dataChannel || null;
+
+  // adaptive chunk size
+  let chunkSize = CHUNK_SIZE;
+  if (file.size > 500 * 1024 * 1024) chunkSize = 64 * 1024 * 1024;
+  else if (file.size > 100 * 1024 * 1024) chunkSize = 32 * 1024 * 1024;
+
+  while (offset < file.size) {
+    const slice = file.slice(offset, offset + chunkSize);
+    const buffer = await slice.arrayBuffer();
+
+    await waitForBuffer(dataChannel);
+
+    conn.send({
+      type: "file-chunk",
+      fileId,
+      chunk: buffer
+    });
+
+    sent += buffer.byteLength;
+    offset += chunkSize;
+    updateSpeedDisplay(buffer.byteLength);
+
+    const percent = Math.floor((sent / file.size) * 100);
+    // update every 2% to keep UI responsive
+    if (percent % 2 === 0 || percent >= 100) {
+      updateProgress(fileId, percent);
+    }
+  }
+  updateProgress(fileId, 100);
+}
+
+// ─── Send multiple files ──────────────────────────────────
+sendFilesBtn.onclick = async () => {
+  const files = [...fileInput.files];
+  if (!files.length || !conn) return;
+  speedBytes = 0;
+  speedLastUpdate = performance.now();
+  for (const file of files) {
+    await sendFile(file);
+  }
+};
+
+// ─── Download UI ───────────────────────────────────────────
+function showDownload(name, blob, mime) {
+  const url = URL.createObjectURL(blob);
+  const div = document.createElement("div");
+  div.className = "download-item";
+  let preview = "";
+  if (mime.startsWith("image/")) {
+    preview = `<img src="${url}">`;
+  }
+  if (mime.startsWith("video/")) {
+    preview = `<video controls><source src="${url}"></video>`;
+  }
+  div.innerHTML = `
+    <b>${name}</b><br><br>
+    <a href="${url}" download="${name}">Download</a>
+    ${preview}
+  `;
+  downloadsDiv.appendChild(div);
+}
+
+downloadAllBtn.onclick = async () => {
+  const zip = new JSZip();
+  receivedFiles.forEach((file) => zip.file(file.name, file.blob));
+  const content = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(content);
+  a.download = "PeerDropFiles.zip";
+  a.click();
+};
+
+// ─── Drag & Drop ───────────────────────────────────────────
+dropzone.addEventListener("dragover", (e) => e.preventDefault());
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  fileInput.files = e.dataTransfer.files;
+});
+
+// ─── QR Scanner ────────────────────────────────────────────
+document.getElementById("scanBtn").onclick = async () => {
+  const scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (decodedText) => {
+      peerInput.value = decodedText;
+      scanner.stop();
+    }
+  );
+};
+
+// ─── Service Worker ────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+console.log("⚡ PeerDrop Ultra – turbo mode active");
