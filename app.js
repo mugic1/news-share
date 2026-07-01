@@ -1,4 +1,3 @@
-// ─── DOM refs ───────────────────────────────────────────────
 const peerIdDiv = document.getElementById("peerId");
 const peerInput = document.getElementById("peerInput");
 const connectBtn = document.getElementById("connectBtn");
@@ -14,10 +13,10 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// ─── TURBO CHUNK & BUFFER SETTINGS ────────────────────────
-const CHUNK_SIZE = 16 * 1024 * 1024;          // 16 MB base chunk
-const HIGH_WATER = 128 * 1024 * 1024;         // pause above 128 MB
-const LOW_WATER = 16 * 1024 * 1024;           // resume below 16 MB
+// ─── CRASH-PROOF & STABLE SETTINGS FOR OLD PHONES ────────
+const CHUNK_SIZE = 64 * 1024;                  // 64 KB (WebRTC standard safe packet size)
+const HIGH_WATER = 2 * 1024 * 1024;            // Pause sending above 2 MB (No memory overflow)
+const LOW_WATER = 512 * 1024;                  // Resume below 512 KB
 
 let conn;
 let reconnectId = "";
@@ -29,14 +28,13 @@ let speedBytes = 0;
 let speedLastUpdate = performance.now();
 
 function updateSpeedDisplay(bytesSent) {
+  if (!speedDisplay) return;
   speedBytes += bytesSent;
   const now = performance.now();
-  if (now - speedLastUpdate > 500) {
+  if (now - speedLastUpdate > 1000) { // Update every 1 second to save CPU cycles
     const mbps = (speedBytes / (now - speedLastUpdate)) * 8 / 1e6;
-    speedDisplay.textContent =
-      mbps > 1
-        ? `${mbps.toFixed(1)} Mbps`
-        : `${(speedBytes / (now - speedLastUpdate) * 1e3 / 1e6).toFixed(1)} MB/s`;
+    const mbs = (speedBytes / (now - speedLastUpdate) * 1e3 / (1024 * 1024));
+    speedDisplay.textContent = ` | Speed: ${mbs.toFixed(1)} MB/s (${mbps.toFixed(1)} Mbps)`;
     speedBytes = 0;
     speedLastUpdate = now;
   }
@@ -44,30 +42,51 @@ function updateSpeedDisplay(bytesSent) {
 
 // ─── PeerJS ─────────────────────────────────────────────────
 const peer = new Peer({
-  config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
+  config: {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  }
 });
 
-peer.on("open", (id) => {
+peer.on("open", id => {
   peerIdDiv.innerText = id;
-  QRCode.toCanvas(document.getElementById("qrCanvas"), id, { width: 220 });
+  QRCode.toCanvas(
+    document.getElementById("qrCanvas"),
+    id,
+    { width: 220 }
+  );
 });
 
-peer.on("connection", (connection) => setupConnection(connection));
+peer.on("connection", connection => {
+  setupConnection(connection);
+});
 
-// ─── Connection setup ──────────────────────────────────────
 function setupConnection(connection) {
   conn = connection;
   reconnectId = connection.peer;
 
-  conn.on("open", () => { statusDiv.innerText = "Connected"; });
-  conn.on("close", () => { statusDiv.innerText = "Disconnected";
-    autoReconnect(); });
-  conn.on("error", () => { autoReconnect(); });
+  conn.on("open", () => {
+    statusDiv.innerText = "Connected";
+  });
 
-  conn.on("data", (data) => {
+  conn.on("close", () => {
+    statusDiv.innerText = "Disconnected";
+    autoReconnect();
+  });
+
+  conn.on("error", () => {
+    autoReconnect();
+  });
+
+  // Trackers to stop DOM flooding on older phones
+  let lastReceivedPercent = -1;
+
+  conn.on("data", data => {
     if (data.type === "message") {
       addMessage("Peer: " + data.text);
     }
+
     if (data.type === "file-meta") {
       incomingFiles[data.fileId] = {
         name: data.name,
@@ -77,17 +96,31 @@ function setupConnection(connection) {
         received: 0
       };
       createProgress(data.fileId, data.name);
+      lastReceivedPercent = -1;
     }
+
     if (data.type === "file-chunk") {
       const file = incomingFiles[data.fileId];
       if (!file) return;
+
       file.chunks.push(data.chunk);
       file.received += data.chunk.byteLength;
+
       const percent = Math.floor((file.received / file.size) * 100);
-      updateProgress(data.fileId, percent);
+      
+      // FIX: Sirf tabhi UI update hoga jab percentage change hogi (Anti-Freeze Guard)
+      if (percent !== lastReceivedPercent) {
+        updateProgress(data.fileId, percent);
+        lastReceivedPercent = percent;
+      }
+
       if (file.received >= file.size) {
         const blob = new Blob(file.chunks, { type: file.mime });
-        receivedFiles.push({ name: file.name, blob });
+        receivedFiles.push({
+          name: file.name,
+          blob
+        });
+
         showDownload(file.name, blob, file.mime);
         delete incomingFiles[data.fileId];
       }
@@ -95,10 +128,9 @@ function setupConnection(connection) {
   });
 }
 
-// ─── Reconnect ─────────────────────────────────────────────
 function autoReconnect() {
   if (!reconnectId) return;
-  statusDiv.innerText = "Reconnecting…";
+  statusDiv.innerText = "Reconnecting...";
   setTimeout(() => {
     const connection = peer.connect(reconnectId, { reliable: true });
     setupConnection(connection);
@@ -112,10 +144,12 @@ connectBtn.onclick = () => {
   setupConnection(connection);
 };
 
-// ─── Messaging ─────────────────────────────────────────────
 function addMessage(text, self = false) {
   const div = document.createElement("div");
-  div.className = "message" + (self ? " self" : "");
+  div.className = "message";
+  if (self) {
+    div.classList.add("self");
+  }
   div.innerText = text;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -124,12 +158,14 @@ function addMessage(text, self = false) {
 sendBtn.onclick = () => {
   const text = messageInput.value.trim();
   if (!text || !conn) return;
-  conn.send({ type: "message", text });
+  conn.send({
+    type: "message",
+    text
+  });
   addMessage("You: " + text, true);
   messageInput.value = "";
 };
 
-// ─── Progress UI ───────────────────────────────────────────
 function createProgress(id, name) {
   const div = document.createElement("div");
   div.className = "progress-wrap";
@@ -144,51 +180,32 @@ function createProgress(id, name) {
 
 function updateProgress(id, percent) {
   const bar = document.getElementById(`bar-${id}`);
-  if (bar) bar.style.width = percent + "%";
+  if (bar) {
+    bar.style.width = percent + "%";
+  }
 }
 
-// ─── SUPER‑FAST BACK‑PRESSURE ─────────────────────────────
+// STABLE BACK-PRESSURE CONTROL FOR WEBRTC
 async function waitForBuffer(dataChannel) {
   if (!dataChannel) return;
+
   while (dataChannel.bufferedAmount > HIGH_WATER) {
-    await new Promise((resolve) => {
-      let resolved = false;
-
-      const onLow = () => {
-        if (!resolved) {
-          resolved = true;
-          dataChannel.removeEventListener("bufferedamountlow", onLow);
-          resolve();
-        }
-      };
-      dataChannel.addEventListener("bufferedamountlow", onLow, { once: true });
-
-      // Poll every 2 ms – nearly zero delay
-      const interval = setInterval(() => {
-        if (dataChannel.bufferedAmount <= HIGH_WATER) {
-          clearInterval(interval);
-          if (!resolved) {
-            resolved = true;
-            dataChannel.removeEventListener("bufferedamountlow", onLow);
-            resolve();
-          }
-        }
-      }, 2);
-
-      // Safety net: resolve after 2 seconds
-      setTimeout(() => {
-        clearInterval(interval);
-        if (!resolved) {
-          resolved = true;
-          dataChannel.removeEventListener("bufferedamountlow", onLow);
-          resolve();
-        }
-      }, 2000);
+    await new Promise(resolve => {
+      if (dataChannel.bufferedAmountLowThreshold !== undefined) {
+        dataChannel.bufferedAmountLowThreshold = LOW_WATER;
+        dataChannel.addEventListener(
+          "bufferedamountlow",
+          resolve,
+          { once: true }
+        );
+      } else {
+        // Fallback safe timeout for older browsers/systems
+        setTimeout(resolve, 30);
+      }
     });
   }
 }
 
-// ─── SEND FILE – TURBO ─────────────────────────────────────
 async function sendFile(file) {
   const fileId = crypto.randomUUID();
   createProgress(fileId, file.name);
@@ -203,15 +220,14 @@ async function sendFile(file) {
 
   let offset = 0;
   let sent = 0;
+  let lastSentPercent = -1;
   const dataChannel = conn.dataChannel || null;
 
-  // adaptive chunk size
-  let chunkSize = CHUNK_SIZE;
-  if (file.size > 500 * 1024 * 1024) chunkSize = 64 * 1024 * 1024;
-  else if (file.size > 100 * 1024 * 1024) chunkSize = 32 * 1024 * 1024;
+  speedBytes = 0;
+  speedLastUpdate = performance.now();
 
   while (offset < file.size) {
-    const slice = file.slice(offset, offset + chunkSize);
+    const slice = file.slice(offset, offset + CHUNK_SIZE);
     const buffer = await slice.arrayBuffer();
 
     await waitForBuffer(dataChannel);
@@ -223,43 +239,45 @@ async function sendFile(file) {
     });
 
     sent += buffer.byteLength;
-    offset += chunkSize;
+    offset += CHUNK_SIZE;
+
     updateSpeedDisplay(buffer.byteLength);
 
     const percent = Math.floor((sent / file.size) * 100);
-    // update every 2% to keep UI responsive
-    if (percent % 2 === 0 || percent >= 100) {
+    
+    // FIX: Prevents layout reflow spamming on older phones
+    if (percent !== lastSentPercent) {
       updateProgress(fileId, percent);
+      lastSentPercent = percent;
     }
   }
-  updateProgress(fileId, 100);
 }
 
-// ─── Send multiple files ──────────────────────────────────
 sendFilesBtn.onclick = async () => {
   const files = [...fileInput.files];
   if (!files.length || !conn) return;
-  speedBytes = 0;
-  speedLastUpdate = performance.now();
+
   for (const file of files) {
     await sendFile(file);
   }
 };
 
-// ─── Download UI ───────────────────────────────────────────
 function showDownload(name, blob, mime) {
   const url = URL.createObjectURL(blob);
   const div = document.createElement("div");
   div.className = "download-item";
   let preview = "";
+
   if (mime.startsWith("image/")) {
     preview = `<img src="${url}">`;
   }
   if (mime.startsWith("video/")) {
     preview = `<video controls><source src="${url}"></video>`;
   }
+
   div.innerHTML = `
-    <b>${name}</b><br><br>
+    <b>${name}</b>
+    <br><br>
     <a href="${url}" download="${name}">Download</a>
     ${preview}
   `;
@@ -268,7 +286,10 @@ function showDownload(name, blob, mime) {
 
 downloadAllBtn.onclick = async () => {
   const zip = new JSZip();
-  receivedFiles.forEach((file) => zip.file(file.name, file.blob));
+  receivedFiles.forEach(file => {
+    zip.file(file.name, file.blob);
+  });
+
   const content = await zip.generateAsync({ type: "blob" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(content);
@@ -276,29 +297,25 @@ downloadAllBtn.onclick = async () => {
   a.click();
 };
 
-// ─── Drag & Drop ───────────────────────────────────────────
-dropzone.addEventListener("dragover", (e) => e.preventDefault());
-dropzone.addEventListener("drop", (e) => {
+dropzone.addEventListener("dragover", e => { e.preventDefault(); });
+dropzone.addEventListener("drop", e => {
   e.preventDefault();
   fileInput.files = e.dataTransfer.files;
 });
 
-// ─── QR Scanner ────────────────────────────────────────────
 document.getElementById("scanBtn").onclick = async () => {
   const scanner = new Html5Qrcode("reader");
   scanner.start(
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
-    (decodedText) => {
+    decodedText => {
       peerInput.value = decodedText;
       scanner.stop();
     }
-  );
+  ).catch(err => console.log("Scanner error: ", err));
 };
 
-// ─── Service Worker ────────────────────────────────────────
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
-}
-
-console.log("⚡ PeerDrop Ultra – turbo mode active");
+                                         }
+  
