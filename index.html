@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>PeerDrop Ultra Pro</title>
+  <title>PeerDrop Ultra Dashboard</title>
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#1e1b4b" />
+  <meta name="theme-color" content="#0b0f19" />
 
-  <link rel="stylesheet" href="style.css?v=2.0" />
+  <link rel="stylesheet" href="style.css?v=3.0" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -29,58 +29,65 @@
       <div id="status" class="status-pill disconnected">Disconnected</div>
     </header>
 
-    <section class="card">
-      <h2 class="card-title">Your Secure Identity</h2>
-      <div id="peerId" class="identity-display">Generating your unique P2P link...</div>
-      <div class="qr-wrapper">
-        <canvas id="qrCanvas"></canvas>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2 class="card-title">Connect with Partner</h2>
-      <div class="input-container">
-        <input type="text" id="peerInput" placeholder="Paste partner's secure ID here" />
-      </div>
-      <div class="action-buttons">
-        <button id="connectBtn" class="btn btn-primary">Connect Link</button>
-        <button id="scanBtn" class="btn btn-secondary">Scan QR Code</button>
-      </div>
-      <div id="reader"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="card-title">
-        File Gateway 
-        <span id="speedDisplay"></span>
-      </h2>
+    <div class="app-dashboard-grid">
       
-      <div id="dropzone" class="dropzone-box">
-        <div class="dropzone-inside">
-          <span class="icon-big">📥</span>
-          <p>Drag & Drop files here or <strong>Tap to browse</strong></p>
-        </div>
-      </div>
-      <input type="file" id="fileInput" multiple style="display: none;" />
-      
-      <div class="action-buttons margin-top">
-        <button id="sendFilesBtn" class="btn btn-accent">⚡ Send Transmit</button>
-        <button id="downloadAllBtn" class="btn btn-outline">Download All (.ZIP)</button>
+      <div class="dashboard-left">
+        <section class="card">
+          <h2 class="card-title">Your Secure Identity</h2>
+          <div id="peerId" class="identity-display">Generating identity...</div>
+          <div class="qr-wrapper">
+            <canvas id="qrCanvas"></canvas>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Connect with Partner</h2>
+          <div class="input-container">
+            <input type="text" id="peerInput" placeholder="Paste partner's secure ID here" />
+          </div>
+          <div class="action-buttons">
+            <button id="connectBtn" class="btn btn-primary">Connect Link</button>
+            <button id="scanBtn" class="btn btn-secondary">Scan QR</button>
+          </div>
+          <div id="reader"></div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">
+            File Gateway 
+            <span id="speedDisplay">⚡ 0.0 MB/s</span>
+          </h2>
+          
+          <div id="dropzone" class="dropzone-box">
+            <div class="dropzone-inside">
+              <span class="icon-big">📥</span>
+              <p>Drag & Drop or <strong>Tap to browse</strong></p>
+            </div>
+          </div>
+          <input type="file" id="fileInput" multiple style="display: none;" />
+          
+          <div class="action-buttons margin-top">
+            <button id="sendFilesBtn" class="btn btn-accent">⚡ Send Transmit</button>
+            <button id="downloadAllBtn" class="btn btn-outline">Download All (.ZIP)</button>
+          </div>
+
+          <div id="transfers" class="monitor-space"></div>
+          <div id="downloads" class="gallery-space"></div>
+        </section>
       </div>
 
-      <div id="transfers" class="monitor-space"></div>
-      <div id="downloads" class="gallery-space"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="card-title">Secure Channel Chat</h2>
-      <div id="messages" class="chat-area"></div>
-      <div class="chat-footer">
-        <input type="text" id="messageInput" placeholder="Type a message..." />
-        <button id="sendBtn" class="btn btn-send">Send</button>
+      <div class="dashboard-right">
+        <section class="card chat-card">
+          <h2 class="card-title">Secure Channel Chat</h2>
+          <div id="messages" class="chat-area"></div>
+          <div class="chat-footer">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="sendBtn" class="btn btn-send">Send</button>
+          </div>
+        </section>
       </div>
-    </section>
 
+    </div>
   </div>
   <script src="app.js"></script>
 </body>
