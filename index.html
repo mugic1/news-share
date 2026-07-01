@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PeerDrop Ultra</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PeerDrop Ultra Pro</title>
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#4f46e5" />
+  <meta name="theme-color" content="#1e1b4b" />
 
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=2.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
@@ -17,85 +17,71 @@
 </head>
 <body>
   <div class="app-container">
-    <header class="main-header">
-      <div class="logo-area">
-        <span class="lightning-icon">⚡</span>
-        <div>
+    
+    <header class="app-header">
+      <div class="brand">
+        <span class="bolt">⚡</span>
+        <div class="brand-text">
           <h1>PeerDrop Ultra</h1>
-          <p>Secure, Super‑fast P2P Sharing</p>
+          <p>Secure P2P File Transfer</p>
         </div>
       </div>
-      <div id="status" class="status-badge disconnected">Disconnected</div>
+      <div id="status" class="status-pill disconnected">Disconnected</div>
     </header>
 
-    <div class="main-grid">
-      <div class="column">
-        <div class="main-card id-card">
-          <div class="card-header">
-            <h2>Your Unique Identity</h2>
-          </div>
-          <div id="peerId" class="peer-id-box">Generating safe connection secure link…</div>
-          <div class="qr-container">
-            <canvas id="qrCanvas"></canvas>
-          </div>
-        </div>
+    <section class="card">
+      <h2 class="card-title">Your Secure Identity</h2>
+      <div id="peerId" class="identity-display">Generating your unique P2P link...</div>
+      <div class="qr-wrapper">
+        <canvas id="qrCanvas"></canvas>
+      </div>
+    </section>
 
-        <div class="main-card connect-card">
-          <div class="card-header">
-            <h2>Connect with Partner</h2>
-          </div>
-          <div class="input-wrapper">
-            <input type="text" id="peerInput" placeholder="Paste partner's secure ID here" />
-          </div>
-          <div class="button-group overlay-layout">
-            <button id="connectBtn" class="btn btn-primary">Connect Link</button>
-            <button id="scanBtn" class="btn btn-secondary">Scan QR Code</button>
-          </div>
-          <div id="reader"></div>
+    <section class="card">
+      <h2 class="card-title">Connect with Partner</h2>
+      <div class="input-container">
+        <input type="text" id="peerInput" placeholder="Paste partner's secure ID here" />
+      </div>
+      <div class="action-buttons">
+        <button id="connectBtn" class="btn btn-primary">Connect Link</button>
+        <button id="scanBtn" class="btn btn-secondary">Scan QR Code</button>
+      </div>
+      <div id="reader"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">
+        File Gateway 
+        <span id="speedDisplay"></span>
+      </h2>
+      
+      <div id="dropzone" class="dropzone-box">
+        <div class="dropzone-inside">
+          <span class="icon-big">📥</span>
+          <p>Drag & Drop files here or <strong>Tap to browse</strong></p>
         </div>
       </div>
-
-      <div class="column">
-        <div class="main-card sharing-card">
-          <div class="card-header">
-            <h2>
-              File Gateway
-              <span id="speedDisplay"></span>
-            </h2>
-          </div>
-          
-          <div id="dropzone" class="premium-dropzone">
-            <div class="dropzone-content">
-              <span class="upload-cloud-icon">📥</span>
-              <p>Drag & Drop files here or tap to explore</p>
-            </div>
-          </div>
-          <input type="file" id="fileInput" multiple style="display: none;" />
-          
-          <div class="button-group spacing-top">
-            <button id="sendFilesBtn" class="btn btn-accent">⚡ Send Transmit</button>
-            <button id="downloadAllBtn" class="btn btn-outline">Download All (.ZIP)</button>
-          </div>
-
-          <div id="transfers" class="transfer-monitor-list"></div>
-          <div id="downloads" class="download-gallery-grid"></div>
-        </div>
-
-        <div class="main-card chat-card">
-          <div class="card-header">
-            <h2>Secure Channel Chat</h2>
-          </div>
-          <div id="messages" class="chat-viewport"></div>
-          <div class="chat-input-row">
-            <input type="text" id="messageInput" placeholder="Type a confidential message..." />
-            <button id="sendBtn" class="btn btn-send">Send</button>
-          </div>
-        </div>
+      <input type="file" id="fileInput" multiple style="display: none;" />
+      
+      <div class="action-buttons margin-top">
+        <button id="sendFilesBtn" class="btn btn-accent">⚡ Send Transmit</button>
+        <button id="downloadAllBtn" class="btn btn-outline">Download All (.ZIP)</button>
       </div>
-    </div>
+
+      <div id="transfers" class="monitor-space"></div>
+      <div id="downloads" class="gallery-space"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Secure Channel Chat</h2>
+      <div id="messages" class="chat-area"></div>
+      <div class="chat-footer">
+        <input type="text" id="messageInput" placeholder="Type a message..." />
+        <button id="sendBtn" class="btn btn-send">Send</button>
+      </div>
+    </section>
+
   </div>
-
   <script src="app.js"></script>
 </body>
-                         </html>
-                         
+</html>
