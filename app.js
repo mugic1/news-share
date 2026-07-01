@@ -13,8 +13,7 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// Standard WebRTC optimized buffering blocks to bypass memory leak/crashes
-const CHUNK_SIZE = 64 * 1024; // 64 KB Safe standard packets
+const CHUNK_SIZE = 64 * 1024; // 64 KB Safe high-speed blocks
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
@@ -61,50 +60,88 @@ function setupConnection(connection) {
   conn.on("close", () => {
     statusDiv.innerText = "Disconnected";
     statusDiv.className = "status-offline";
+    handleInterruptedTransfers(); // Connection toot te hi broken files clean karo
     autoReconnect();
   });
 
-  conn.on("error", () => { autoReconnect(); });
+  conn.on("error", () => { 
+    handleInterruptedTransfers();
+    autoReconnect(); 
+  });
 
-  conn.on("data", data => {
+  conn.on("data", async data => {
     if (data.type === "message") {
       addMessage("Peer: " + data.text);
     }
 
     if (data.type === "file-meta") {
-      incomingFiles[data.fileId] = {
-        name: data.name,
-        size: data.size,
-        mime: data.mime,
-        chunks: [],
-        received: 0
-      };
-      createProgress(data.fileId, data.name);
-      speedBytes = 0;
-      speedLastUpdate = performance.now();
+      try {
+        // Accessing Browser's Private Disk Sandbox (OPFS)
+        const root = await navigator.storage.getDirectory();
+        const fileHandle = await root.getFileHandle(data.fileId, { create: true });
+        const writable = await fileHandle.createWritable();
+
+        incomingFiles[data.fileId] = {
+          name: data.name,
+          size: data.size,
+          mime: data.mime,
+          fileHandle,
+          writable,
+          received: 0
+        };
+
+        createProgress(data.fileId, data.name);
+        speedBytes = 0;
+        speedLastUpdate = performance.now();
+      } catch (err) {
+        console.error("Storage Initialization Failed", err);
+      }
     }
 
     if (data.type === "file-chunk") {
       const file = incomingFiles[data.fileId];
       if (!file) return;
 
-      file.chunks.push(data.chunk);
+      // RAM बाईपास: Seedhe phone ki disk storage par chunk write ho raha hai
+      await file.writable.write(data.chunk);
       file.received += data.chunk.byteLength;
 
-      // Realtime speed rendering on Receiver End
       calcLiveSpeed(data.chunk.byteLength);
 
       const percent = Math.floor((file.received / file.size) * 100);
       updateProgress(data.fileId, percent);
 
       if (file.received >= file.size) {
-        const blob = new Blob(file.chunks, { type: file.mime });
-        receivedFiles.push({ name: file.name, blob });
-        showDownload(file.name, blob, file.mime);
-        delete incomingFiles[data.fileId];
+        await file.writable.close(); // Save stream finalize karo
+        
+        const fileData = await file.fileHandle.getFile();
+        receivedFiles.push({ name: file.name, blob: fileData });
+        
+        showDownload(file.name, fileData, file.mime);
+        delete incomingFiles[data.fileId]; // Safe drop from temporary pool
       }
     }
   });
+}
+
+// Transactional Cleanup Handler: Adhi-adhuri files ko sandbox se delete karne ke liye
+async function handleInterruptedTransfers() {
+  const root = await navigator.storage.getDirectory();
+  for (const fileId in incomingFiles) {
+    try {
+      const file = incomingFiles[fileId];
+      await file.writable.abort(); // Writing stop karo
+      await root.removeEntry(fileId); // Disk se incomplete cache entry uda do
+      console.log(`Cleaned up corrupted file chunk stream: ${file.name}`);
+    } catch (e) {
+      // Stream already closed or handled
+    }
+    const bar = document.getElementById(`bar-${fileId}`);
+    if (bar) {
+      bar.style.backgroundColor = "#ef4444"; // Progress bar turns red to show failure
+    }
+    delete incomingFiles[fileId];
+  }
 }
 
 function autoReconnect() {
@@ -128,7 +165,7 @@ function addMessage(text, self = false) {
   const div = document.createElement("div");
   div.className = "message";
   if (self) div.classList.add("self");
-  div.innerText = text; // layout configuration handled via CSS pre-wrap
+  div.innerText = text;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
@@ -154,9 +191,8 @@ function updateProgress(id, percent) {
   if (bar) bar.style.width = percent + "%";
 }
 
-// Low-overhead backpressure coordinator to prevent browser memory drops
 async function waitForBuffer(dataChannel) {
-  const HIGH_WATER = 1024 * 1024; // 1 MB buffer limit
+  const HIGH_WATER = 1024 * 1024; // 1 MB backpressure limit
   const LOW_WATER = 256 * 1024;
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
@@ -190,7 +226,6 @@ async function sendFile(file) {
   speedBytes = 0;
   speedLastUpdate = performance.now();
 
-  // Async streaming chunks reading system to avoid freezing large 1GB loads
   while (offset < file.size) {
     const slice = file.slice(offset, offset + CHUNK_SIZE);
     const buffer = await slice.arrayBuffer();
