@@ -13,19 +13,18 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// Optimized block chunks for high-throughput browser data transfer
-const CHUNK_SIZE = 256 * 1024; 
+// Standard WebRTC optimized buffering blocks to bypass memory leak/crashes
+const CHUNK_SIZE = 64 * 1024; // 64 KB Safe standard packets
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
 let incomingFiles = {};
 
-// Unified Speed Counter Engine
 let speedBytes = 0;
 let speedLastUpdate = performance.now();
 
-function calcLiveSpeed(bytesRead) {
-  speedBytes += bytesRead;
+function calcLiveSpeed(bytesProcessed) {
+  speedBytes += bytesProcessed;
   const now = performance.now();
   if (now - speedLastUpdate >= 1000) {
     const mbs = (speedBytes / (1024 * 1024)) / ((now - speedLastUpdate) / 1000);
@@ -92,7 +91,7 @@ function setupConnection(connection) {
       file.chunks.push(data.chunk);
       file.received += data.chunk.byteLength;
 
-      // FIX: Call live speed counter inside incoming data block for the Receiver side
+      // Realtime speed rendering on Receiver End
       calcLiveSpeed(data.chunk.byteLength);
 
       const percent = Math.floor((file.received / file.size) * 100);
@@ -113,7 +112,6 @@ function autoReconnect() {
   statusDiv.innerText = "Reconnecting...";
   statusDiv.className = "status-offline";
   setTimeout(() => {
-    // FIX: Removed {reliable: true} wrapper to unleash hardware-accelerated connection speeds
     const connection = peer.connect(reconnectId);
     setupConnection(connection);
   }, 2000);
@@ -122,7 +120,6 @@ function autoReconnect() {
 connectBtn.onclick = () => {
   const id = peerInput.value.trim();
   if (!id) return;
-  // FIX: Removed {reliable: true} to fully open WebRTC throughput pipeline
   const connection = peer.connect(id);
   setupConnection(connection);
 };
@@ -131,14 +128,14 @@ function addMessage(text, self = false) {
   const div = document.createElement("div");
   div.className = "message";
   if (self) div.classList.add("self");
-  div.innerText = text;
+  div.innerText = text; // layout configuration handled via CSS pre-wrap
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 sendBtn.onclick = () => {
-  const text = messageInput.value.trim();
-  if (!text || !conn) return;
+  const text = messageInput.value;
+  if (!text.trim() || !conn) return;
   conn.send({ type: "message", text });
   addMessage("You: " + text, true);
   messageInput.value = "";
@@ -157,9 +154,10 @@ function updateProgress(id, percent) {
   if (bar) bar.style.width = percent + "%";
 }
 
+// Low-overhead backpressure coordinator to prevent browser memory drops
 async function waitForBuffer(dataChannel) {
-  const HIGH_WATER = 4 * 1024 * 1024;
-  const LOW_WATER = 512 * 1024;
+  const HIGH_WATER = 1024 * 1024; // 1 MB buffer limit
+  const LOW_WATER = 256 * 1024;
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
     await new Promise(resolve => {
@@ -167,7 +165,7 @@ async function waitForBuffer(dataChannel) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
         dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        setTimeout(resolve, 30);
+        setTimeout(resolve, 20);
       }
     });
   }
@@ -192,6 +190,7 @@ async function sendFile(file) {
   speedBytes = 0;
   speedLastUpdate = performance.now();
 
+  // Async streaming chunks reading system to avoid freezing large 1GB loads
   while (offset < file.size) {
     const slice = file.slice(offset, offset + CHUNK_SIZE);
     const buffer = await slice.arrayBuffer();
