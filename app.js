@@ -13,27 +13,23 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// ─── UNLOCKED BUFFER CHUNKS FOR MAXIMUM SPEED OVER NATIVE SCTP ───
-const CHUNK_SIZE = 256 * 1024;                 // 256 KB Chunks
-const HIGH_WATER = 8 * 1024 * 1024;           // 8 MB Max Buffer
-const LOW_WATER = 4 * 1024 * 1024;            // 4 MB Min Buffer
-
+// Optimized block chunks for high-throughput browser data transfer
+const CHUNK_SIZE = 256 * 1024; 
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
 let incomingFiles = {};
 
-// Universal Bi-directional Speed tracking
+// Unified Speed Counter Engine
 let speedBytes = 0;
 let speedLastUpdate = performance.now();
 
-function updateSpeedDisplay(bytesProcessed) {
-  if (!speedDisplay) return;
-  speedBytes += bytesProcessed;
+function calcLiveSpeed(bytesRead) {
+  speedBytes += bytesRead;
   const now = performance.now();
-  if (now - speedLastUpdate > 1000) { 
-    const mbs = (speedBytes / (now - speedLastUpdate) * 1e3 / (1024 * 1024));
-    speedDisplay.textContent = `⚡ ${mbs.toFixed(1)} MB/s`;
+  if (now - speedLastUpdate >= 1000) {
+    const mbs = (speedBytes / (1024 * 1024)) / ((now - speedLastUpdate) / 1000);
+    if (speedDisplay) speedDisplay.innerText = `⚡ ${mbs.toFixed(1)} MB/s`;
     speedBytes = 0;
     speedLastUpdate = now;
   }
@@ -42,9 +38,7 @@ function updateSpeedDisplay(bytesProcessed) {
 dropzone.onclick = () => fileInput.click();
 
 const peer = new Peer({
-  config: {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  }
+  config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
 });
 
 peer.on("open", id => {
@@ -62,24 +56,20 @@ function setupConnection(connection) {
 
   conn.on("open", () => {
     statusDiv.innerText = "Connected";
-    statusDiv.className = "status-pill connected";
+    statusDiv.className = "status-online";
   });
 
   conn.on("close", () => {
     statusDiv.innerText = "Disconnected";
-    statusDiv.className = "status-pill disconnected";
+    statusDiv.className = "status-offline";
     autoReconnect();
   });
 
-  conn.on("error", () => {
-    autoReconnect();
-  });
-
-  let lastReceivedPercent = -1;
+  conn.on("error", () => { autoReconnect(); });
 
   conn.on("data", data => {
     if (data.type === "message") {
-      addMessage("Partner: " + data.text);
+      addMessage("Peer: " + data.text);
     }
 
     if (data.type === "file-meta") {
@@ -91,9 +81,6 @@ function setupConnection(connection) {
         received: 0
       };
       createProgress(data.fileId, data.name);
-      lastReceivedPercent = -1;
-      
-      // Reset speed counters on incoming metadata
       speedBytes = 0;
       speedLastUpdate = performance.now();
     }
@@ -105,14 +92,11 @@ function setupConnection(connection) {
       file.chunks.push(data.chunk);
       file.received += data.chunk.byteLength;
 
-      // FIX: Call speedometer on receiver side so it displays speed actively too!
-      updateSpeedDisplay(data.chunk.byteLength);
+      // FIX: Call live speed counter inside incoming data block for the Receiver side
+      calcLiveSpeed(data.chunk.byteLength);
 
       const percent = Math.floor((file.received / file.size) * 100);
-      if (percent !== lastReceivedPercent) {
-        updateProgress(data.fileId, percent);
-        lastReceivedPercent = percent;
-      }
+      updateProgress(data.fileId, percent);
 
       if (file.received >= file.size) {
         const blob = new Blob(file.chunks, { type: file.mime });
@@ -127,9 +111,9 @@ function setupConnection(connection) {
 function autoReconnect() {
   if (!reconnectId) return;
   statusDiv.innerText = "Reconnecting...";
-  statusDiv.className = "status-pill disconnected";
+  statusDiv.className = "status-offline";
   setTimeout(() => {
-    // FIX: Removed {reliable: true} to unlock direct native browser performance
+    // FIX: Removed {reliable: true} wrapper to unleash hardware-accelerated connection speeds
     const connection = peer.connect(reconnectId);
     setupConnection(connection);
   }, 2000);
@@ -138,7 +122,7 @@ function autoReconnect() {
 connectBtn.onclick = () => {
   const id = peerInput.value.trim();
   if (!id) return;
-  // FIX: Removed {reliable: true} to allow raw WebRTC data pipeline acceleration
+  // FIX: Removed {reliable: true} to fully open WebRTC throughput pipeline
   const connection = peer.connect(id);
   setupConnection(connection);
 };
@@ -163,12 +147,7 @@ sendBtn.onclick = () => {
 function createProgress(id, name) {
   const div = document.createElement("div");
   div.className = "progress-wrap";
-  div.innerHTML = `
-    <p>${name}</p>
-    <div class="progress">
-      <div class="progress-bar" id="bar-${id}"></div>
-    </div>
-  `;
+  div.innerHTML = `<p>${name}</p><div class="progress"><div class="progress-bar" id="bar-${id}"></div></div>`;
   transfersDiv.appendChild(div);
   transfersDiv.scrollTop = transfersDiv.scrollHeight;
 }
@@ -179,6 +158,8 @@ function updateProgress(id, percent) {
 }
 
 async function waitForBuffer(dataChannel) {
+  const HIGH_WATER = 4 * 1024 * 1024;
+  const LOW_WATER = 512 * 1024;
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
     await new Promise(resolve => {
@@ -186,7 +167,7 @@ async function waitForBuffer(dataChannel) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
         dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        setTimeout(resolve, 1);
+        setTimeout(resolve, 30);
       }
     });
   }
@@ -206,9 +187,8 @@ async function sendFile(file) {
 
   let offset = 0;
   let sent = 0;
-  let lastSentPercent = -1;
   const dataChannel = conn.dataChannel || null;
-
+  
   speedBytes = 0;
   speedLastUpdate = performance.now();
 
@@ -217,19 +197,15 @@ async function sendFile(file) {
     const buffer = await slice.arrayBuffer();
 
     await waitForBuffer(dataChannel);
-
     conn.send({ type: "file-chunk", fileId, chunk: buffer });
 
     sent += buffer.byteLength;
     offset += CHUNK_SIZE;
 
-    updateSpeedDisplay(buffer.byteLength);
+    calcLiveSpeed(buffer.byteLength);
 
     const percent = Math.floor((sent / file.size) * 100);
-    if (percent !== lastSentPercent) {
-      updateProgress(fileId, percent);
-      lastSentPercent = percent;
-    }
+    updateProgress(fileId, percent);
   }
 }
 
@@ -250,11 +226,7 @@ function showDownload(name, blob, mime) {
   if (mime.startsWith("image/")) preview = `<img src="${url}">`;
   if (mime.startsWith("video/")) preview = `<video controls><source src="${url}"></video>`;
 
-  div.innerHTML = `
-    <b>${name}</b><br><br>
-    <a href="${url}" download="${name}">Download File</a>
-    ${preview}
-  `;
+  div.innerHTML = `<b>${name}</b><br><br><a href="${url}" download="${name}">Download</a>${preview}`;
   downloadsDiv.appendChild(div);
   downloadsDiv.scrollTop = downloadsDiv.scrollHeight;
 }
@@ -285,7 +257,7 @@ document.getElementById("scanBtn").onclick = async () => {
       peerInput.value = decodedText;
       scanner.stop();
     }
-  ).catch(err => console.log("Scanner error: ", err));
+  );
 };
 
 if ("serviceWorker" in navigator) {
