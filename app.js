@@ -13,7 +13,8 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-const CHUNK_SIZE = 64 * 1024; // 64 KB Safe high-speed blocks
+// Optimized Chunk Size to reduce network packet overhead
+const CHUNK_SIZE = 512 * 1024; // 512 KB Balanced standard
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
@@ -60,7 +61,7 @@ function setupConnection(connection) {
   conn.on("close", () => {
     statusDiv.innerText = "Disconnected";
     statusDiv.className = "status-offline";
-    handleInterruptedTransfers(); // Connection toot te hi broken files clean karo
+    handleInterruptedTransfers();
     autoReconnect();
   });
 
@@ -76,25 +77,27 @@ function setupConnection(connection) {
 
     if (data.type === "file-meta") {
       try {
-        // Accessing Browser's Private Disk Sandbox (OPFS)
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(data.fileId, { create: true });
         const writable = await fileHandle.createWritable();
 
+        // Object system with isolated array queue & active write status flag
         incomingFiles[data.fileId] = {
           name: data.name,
           size: data.size,
           mime: data.mime,
           fileHandle,
           writable,
-          received: 0
+          received: 0,
+          queue: [],
+          isWriting: false
         };
 
         createProgress(data.fileId, data.name);
         speedBytes = 0;
         speedLastUpdate = performance.now();
       } catch (err) {
-        console.error("Storage Initialization Failed", err);
+        console.error("Storage Allocation Blocked", err);
       }
     }
 
@@ -102,44 +105,64 @@ function setupConnection(connection) {
       const file = incomingFiles[data.fileId];
       if (!file) return;
 
-      // RAM बाईपास: Seedhe phone ki disk storage par chunk write ho raha hai
-      await file.writable.write(data.chunk);
-      file.received += data.chunk.byteLength;
+      // Non-blocking network push: Chunks are stored into array instantly
+      file.queue.push(data.chunk);
+      
+      // Separate task process handler initiated
+      processFileQueue(data.fileId);
+    }
+  });
+}
 
-      calcLiveSpeed(data.chunk.byteLength);
+// Sequential Processing Engine: Eliminates overlapping disk writing locks
+async function processFileQueue(fileId) {
+  const file = incomingFiles[fileId];
+  if (!file || file.isWriting) return;
+
+  file.isWriting = true;
+
+  while (file.queue.length > 0) {
+    const chunk = file.queue.shift();
+    try {
+      await file.writable.write(chunk);
+      file.received += chunk.byteLength;
+
+      calcLiveSpeed(chunk.byteLength);
 
       const percent = Math.floor((file.received / file.size) * 100);
-      updateProgress(data.fileId, percent);
+      updateProgress(fileId, percent);
 
       if (file.received >= file.size) {
-        await file.writable.close(); // Save stream finalize karo
+        await file.writable.close();
         
         const fileData = await file.fileHandle.getFile();
         receivedFiles.push({ name: file.name, blob: fileData });
         
         showDownload(file.name, fileData, file.mime);
-        delete incomingFiles[data.fileId]; // Safe drop from temporary pool
+        delete incomingFiles[fileId];
+        break; // Pipeline successfully processed
       }
+    } catch (e) {
+      console.error("Queue execution stalled", e);
     }
-  });
+  }
+
+  if (incomingFiles[fileId]) {
+    file.isWriting = false;
+  }
 }
 
-// Transactional Cleanup Handler: Adhi-adhuri files ko sandbox se delete karne ke liye
 async function handleInterruptedTransfers() {
   const root = await navigator.storage.getDirectory();
   for (const fileId in incomingFiles) {
     try {
       const file = incomingFiles[fileId];
-      await file.writable.abort(); // Writing stop karo
-      await root.removeEntry(fileId); // Disk se incomplete cache entry uda do
-      console.log(`Cleaned up corrupted file chunk stream: ${file.name}`);
-    } catch (e) {
-      // Stream already closed or handled
-    }
+      file.queue = []; // clear volatile cache queue
+      await file.writable.abort();
+      await root.removeEntry(fileId);
+    } catch (e) {}
     const bar = document.getElementById(`bar-${fileId}`);
-    if (bar) {
-      bar.style.backgroundColor = "#ef4444"; // Progress bar turns red to show failure
-    }
+    if (bar) bar.style.backgroundColor = "#ef4444";
     delete incomingFiles[fileId];
   }
 }
@@ -192,8 +215,8 @@ function updateProgress(id, percent) {
 }
 
 async function waitForBuffer(dataChannel) {
-  const HIGH_WATER = 1024 * 1024; // 1 MB backpressure limit
-  const LOW_WATER = 256 * 1024;
+  const HIGH_WATER = 4 * 1024 * 1024; // 4MB Network pipeline headroom
+  const LOW_WATER = 1024 * 1024;
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
     await new Promise(resolve => {
@@ -201,7 +224,7 @@ async function waitForBuffer(dataChannel) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
         dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        setTimeout(resolve, 20);
+        setTimeout(resolve, 15);
       }
     });
   }
