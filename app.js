@@ -13,17 +13,17 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// ─── CRASH-PROOF & STABLE SETTINGS FOR OLD PHONES ────────
-const CHUNK_SIZE = 64 * 1024;                  // 64 KB (WebRTC standard safe packet size)
-const HIGH_WATER = 2 * 1024 * 1024;            // Pause sending above 2 MB (No memory overflow)
-const LOW_WATER = 512 * 1024;                  // Resume below 512 KB
+// ─── SAFE CONFIGURATION FOR HIGH SPEED & ANTI-CRASH ───────
+const CHUNK_SIZE = 64 * 1024;                  // 64 KB Safe standard WebRTC packet
+const HIGH_WATER = 2 * 1024 * 1024;            // Pause trigger at 2MB 
+const LOW_WATER = 512 * 1024;                  // Resume trigger at 512KB
 
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
 let incomingFiles = {};
 
-// ─── Speed tracking ────────────────────────────────────────
+// Speed tracking variables
 let speedBytes = 0;
 let speedLastUpdate = performance.now();
 
@@ -31,31 +31,26 @@ function updateSpeedDisplay(bytesSent) {
   if (!speedDisplay) return;
   speedBytes += bytesSent;
   const now = performance.now();
-  if (now - speedLastUpdate > 1000) { // Update every 1 second to save CPU cycles
-    const mbps = (speedBytes / (now - speedLastUpdate)) * 8 / 1e6;
+  if (now - speedLastUpdate > 1000) { // Limit CPU drawing overhead to once per second
     const mbs = (speedBytes / (now - speedLastUpdate) * 1e3 / (1024 * 1024));
-    speedDisplay.textContent = ` | Speed: ${mbs.toFixed(1)} MB/s (${mbps.toFixed(1)} Mbps)`;
+    speedDisplay.textContent = `⚡ ${mbs.toFixed(1)} MB/s`;
     speedBytes = 0;
     speedLastUpdate = now;
   }
 }
 
-// ─── PeerJS ─────────────────────────────────────────────────
+// Redirect dropzone clicks to hidden standard input box safely
+dropzone.onclick = () => fileInput.click();
+
 const peer = new Peer({
   config: {
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" }
-    ]
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   }
 });
 
 peer.on("open", id => {
   peerIdDiv.innerText = id;
-  QRCode.toCanvas(
-    document.getElementById("qrCanvas"),
-    id,
-    { width: 220 }
-  );
+  QRCode.toCanvas(document.getElementById("qrCanvas"), id, { width: 160 });
 });
 
 peer.on("connection", connection => {
@@ -67,11 +62,13 @@ function setupConnection(connection) {
   reconnectId = connection.peer;
 
   conn.on("open", () => {
-    statusDiv.innerText = "Connected";
+    statusDiv.innerText = "Connected Securely";
+    statusDiv.className = "status-badge connected";
   });
 
   conn.on("close", () => {
     statusDiv.innerText = "Disconnected";
+    statusDiv.className = "status-badge disconnected";
     autoReconnect();
   });
 
@@ -79,12 +76,11 @@ function setupConnection(connection) {
     autoReconnect();
   });
 
-  // Trackers to stop DOM flooding on older phones
   let lastReceivedPercent = -1;
 
   conn.on("data", data => {
     if (data.type === "message") {
-      addMessage("Peer: " + data.text);
+      addMessage("Partner: " + data.text);
     }
 
     if (data.type === "file-meta") {
@@ -108,7 +104,7 @@ function setupConnection(connection) {
 
       const percent = Math.floor((file.received / file.size) * 100);
       
-      // FIX: Sirf tabhi UI update hoga jab percentage change hogi (Anti-Freeze Guard)
+      // Safety DOM Check: Throttling interface layout paints
       if (percent !== lastReceivedPercent) {
         updateProgress(data.fileId, percent);
         lastReceivedPercent = percent;
@@ -116,11 +112,7 @@ function setupConnection(connection) {
 
       if (file.received >= file.size) {
         const blob = new Blob(file.chunks, { type: file.mime });
-        receivedFiles.push({
-          name: file.name,
-          blob
-        });
-
+        receivedFiles.push({ name: file.name, blob });
         showDownload(file.name, blob, file.mime);
         delete incomingFiles[data.fileId];
       }
@@ -131,6 +123,7 @@ function setupConnection(connection) {
 function autoReconnect() {
   if (!reconnectId) return;
   statusDiv.innerText = "Reconnecting...";
+  statusDiv.className = "status-badge disconnected";
   setTimeout(() => {
     const connection = peer.connect(reconnectId, { reliable: true });
     setupConnection(connection);
@@ -147,9 +140,7 @@ connectBtn.onclick = () => {
 function addMessage(text, self = false) {
   const div = document.createElement("div");
   div.className = "message";
-  if (self) {
-    div.classList.add("self");
-  }
+  if (self) div.classList.add("self");
   div.innerText = text;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -158,10 +149,7 @@ function addMessage(text, self = false) {
 sendBtn.onclick = () => {
   const text = messageInput.value.trim();
   if (!text || !conn) return;
-  conn.send({
-    type: "message",
-    text
-  });
+  conn.send({ type: "message", text });
   addMessage("You: " + text, true);
   messageInput.value = "";
 };
@@ -185,21 +173,15 @@ function updateProgress(id, percent) {
   }
 }
 
-// STABLE BACK-PRESSURE CONTROL FOR WEBRTC
+// ANTI-OVERFLOW STREAM ENGINE
 async function waitForBuffer(dataChannel) {
   if (!dataChannel) return;
-
   while (dataChannel.bufferedAmount > HIGH_WATER) {
     await new Promise(resolve => {
       if (dataChannel.bufferedAmountLowThreshold !== undefined) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
-        dataChannel.addEventListener(
-          "bufferedamountlow",
-          resolve,
-          { once: true }
-        );
+        dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        // Fallback safe timeout for older browsers/systems
         setTimeout(resolve, 30);
       }
     });
@@ -232,11 +214,7 @@ async function sendFile(file) {
 
     await waitForBuffer(dataChannel);
 
-    conn.send({
-      type: "file-chunk",
-      fileId,
-      chunk: buffer
-    });
+    conn.send({ type: "file-chunk", fileId, chunk: buffer });
 
     sent += buffer.byteLength;
     offset += CHUNK_SIZE;
@@ -244,8 +222,6 @@ async function sendFile(file) {
     updateSpeedDisplay(buffer.byteLength);
 
     const percent = Math.floor((sent / file.size) * 100);
-    
-    // FIX: Prevents layout reflow spamming on older phones
     if (percent !== lastSentPercent) {
       updateProgress(fileId, percent);
       lastSentPercent = percent;
@@ -256,7 +232,6 @@ async function sendFile(file) {
 sendFilesBtn.onclick = async () => {
   const files = [...fileInput.files];
   if (!files.length || !conn) return;
-
   for (const file of files) {
     await sendFile(file);
   }
@@ -268,28 +243,21 @@ function showDownload(name, blob, mime) {
   div.className = "download-item";
   let preview = "";
 
-  if (mime.startsWith("image/")) {
-    preview = `<img src="${url}">`;
-  }
-  if (mime.startsWith("video/")) {
-    preview = `<video controls><source src="${url}"></video>`;
-  }
+  if (mime.startsWith("image/")) preview = `<img src="${url}">`;
+  if (mime.startsWith("video/")) preview = `<video controls><source src="${url}"></video>`;
 
   div.innerHTML = `
-    <b>${name}</b>
-    <br><br>
-    <a href="${url}" download="${name}">Download</a>
+    <b>${name}</b><br><br>
+    <a href="${url}" download="${name}">Download File</a>
     ${preview}
   `;
   downloadsDiv.appendChild(div);
 }
 
 downloadAllBtn.onclick = async () => {
+  if (!receivedFiles.length) return;
   const zip = new JSZip();
-  receivedFiles.forEach(file => {
-    zip.file(file.name, file.blob);
-  });
-
+  receivedFiles.forEach(file => zip.file(file.name, file.blob));
   const content = await zip.generateAsync({ type: "blob" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(content);
@@ -297,7 +265,7 @@ downloadAllBtn.onclick = async () => {
   a.click();
 };
 
-dropzone.addEventListener("dragover", e => { e.preventDefault(); });
+dropzone.addEventListener("dragover", e => e.preventDefault());
 dropzone.addEventListener("drop", e => {
   e.preventDefault();
   fileInput.files = e.dataTransfer.files;
@@ -312,10 +280,9 @@ document.getElementById("scanBtn").onclick = async () => {
       peerInput.value = decodedText;
       scanner.stop();
     }
-  ).catch(err => console.log("Scanner error: ", err));
+  ).catch(err => console.log("Scanner init error: ", err));
 };
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
-                                         }
-  
+}
