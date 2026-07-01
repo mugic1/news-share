@@ -13,23 +13,23 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// ─── SPEED BOOSTER & ANTI-CRASH SWEET SPOT CONFIGURATION ───
-const CHUNK_SIZE = 256 * 1024;                 // 256 KB (High speed, low CPU load)
-const HIGH_WATER = 8 * 1024 * 1024;           // 8 MB Max Buffer (Safe for old phones)
-const LOW_WATER = 4 * 1024 * 1024;            // 4 MB Min Buffer (Prevents pipeline starvation)
+// ─── UNLOCKED BUFFER CHUNKS FOR MAXIMUM SPEED OVER NATIVE SCTP ───
+const CHUNK_SIZE = 256 * 1024;                 // 256 KB Chunks
+const HIGH_WATER = 8 * 1024 * 1024;           // 8 MB Max Buffer
+const LOW_WATER = 4 * 1024 * 1024;            // 4 MB Min Buffer
 
 let conn;
 let reconnectId = "";
 let receivedFiles = [];
 let incomingFiles = {};
 
-// Speed tracking variables
+// Universal Bi-directional Speed tracking
 let speedBytes = 0;
 let speedLastUpdate = performance.now();
 
-function updateSpeedDisplay(bytesSent) {
+function updateSpeedDisplay(bytesProcessed) {
   if (!speedDisplay) return;
-  speedBytes += bytesSent;
+  speedBytes += bytesProcessed;
   const now = performance.now();
   if (now - speedLastUpdate > 1000) { 
     const mbs = (speedBytes / (now - speedLastUpdate) * 1e3 / (1024 * 1024));
@@ -39,7 +39,6 @@ function updateSpeedDisplay(bytesSent) {
   }
 }
 
-// Redirect dropzone clicks to hidden standard input box safely
 dropzone.onclick = () => fileInput.click();
 
 const peer = new Peer({
@@ -50,7 +49,7 @@ const peer = new Peer({
 
 peer.on("open", id => {
   peerIdDiv.innerText = id;
-  QRCode.toCanvas(document.getElementById("qrCanvas"), id, { width: 160 });
+  QRCode.toCanvas(document.getElementById("qrCanvas"), id, { width: 150 });
 });
 
 peer.on("connection", connection => {
@@ -62,13 +61,13 @@ function setupConnection(connection) {
   reconnectId = connection.peer;
 
   conn.on("open", () => {
-    statusDiv.innerText = "Connected Securely";
-    statusDiv.className = "status-badge connected";
+    statusDiv.innerText = "Connected";
+    statusDiv.className = "status-pill connected";
   });
 
   conn.on("close", () => {
     statusDiv.innerText = "Disconnected";
-    statusDiv.className = "status-badge disconnected";
+    statusDiv.className = "status-pill disconnected";
     autoReconnect();
   });
 
@@ -93,6 +92,10 @@ function setupConnection(connection) {
       };
       createProgress(data.fileId, data.name);
       lastReceivedPercent = -1;
+      
+      // Reset speed counters on incoming metadata
+      speedBytes = 0;
+      speedLastUpdate = performance.now();
     }
 
     if (data.type === "file-chunk") {
@@ -102,8 +105,10 @@ function setupConnection(connection) {
       file.chunks.push(data.chunk);
       file.received += data.chunk.byteLength;
 
+      // FIX: Call speedometer on receiver side so it displays speed actively too!
+      updateSpeedDisplay(data.chunk.byteLength);
+
       const percent = Math.floor((file.received / file.size) * 100);
-      
       if (percent !== lastReceivedPercent) {
         updateProgress(data.fileId, percent);
         lastReceivedPercent = percent;
@@ -122,9 +127,10 @@ function setupConnection(connection) {
 function autoReconnect() {
   if (!reconnectId) return;
   statusDiv.innerText = "Reconnecting...";
-  statusDiv.className = "status-badge disconnected";
+  statusDiv.className = "status-pill disconnected";
   setTimeout(() => {
-    const connection = peer.connect(reconnectId, { reliable: true });
+    // FIX: Removed {reliable: true} to unlock direct native browser performance
+    const connection = peer.connect(reconnectId);
     setupConnection(connection);
   }, 2000);
 }
@@ -132,7 +138,8 @@ function autoReconnect() {
 connectBtn.onclick = () => {
   const id = peerInput.value.trim();
   if (!id) return;
-  const connection = peer.connect(id, { reliable: true });
+  // FIX: Removed {reliable: true} to allow raw WebRTC data pipeline acceleration
+  const connection = peer.connect(id);
   setupConnection(connection);
 };
 
@@ -163,16 +170,14 @@ function createProgress(id, name) {
     </div>
   `;
   transfersDiv.appendChild(div);
+  transfersDiv.scrollTop = transfersDiv.scrollHeight;
 }
 
 function updateProgress(id, percent) {
   const bar = document.getElementById(`bar-${id}`);
-  if (bar) {
-    bar.style.width = percent + "%";
-  }
+  if (bar) bar.style.width = percent + "%";
 }
 
-// ANTI-OVERFLOW STREAM ENGINE (OPTIMIZED FOR MAXIMUM FLOW)
 async function waitForBuffer(dataChannel) {
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
@@ -181,7 +186,7 @@ async function waitForBuffer(dataChannel) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
         dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        setTimeout(resolve, 1); // Super fast 1ms polling fallback if event is not supported
+        setTimeout(resolve, 1);
       }
     });
   }
@@ -251,6 +256,7 @@ function showDownload(name, blob, mime) {
     ${preview}
   `;
   downloadsDiv.appendChild(div);
+  downloadsDiv.scrollTop = downloadsDiv.scrollHeight;
 }
 
 downloadAllBtn.onclick = async () => {
@@ -279,7 +285,7 @@ document.getElementById("scanBtn").onclick = async () => {
       peerInput.value = decodedText;
       scanner.stop();
     }
-  ).catch(err => console.log("Scanner init error: ", err));
+  ).catch(err => console.log("Scanner error: ", err));
 };
 
 if ("serviceWorker" in navigator) {
