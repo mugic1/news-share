@@ -13,10 +13,10 @@ const downloadAllBtn = document.getElementById("downloadAllBtn");
 const dropzone = document.getElementById("dropzone");
 const speedDisplay = document.getElementById("speedDisplay");
 
-// ─── SAFE CONFIGURATION FOR HIGH SPEED & ANTI-CRASH ───────
-const CHUNK_SIZE = 64 * 1024;                  // 64 KB Safe standard WebRTC packet
-const HIGH_WATER = 2 * 1024 * 1024;            // Pause trigger at 2MB 
-const LOW_WATER = 512 * 1024;                  // Resume trigger at 512KB
+// ─── SPEED BOOSTER & ANTI-CRASH SWEET SPOT CONFIGURATION ───
+const CHUNK_SIZE = 256 * 1024;                 // 256 KB (High speed, low CPU load)
+const HIGH_WATER = 8 * 1024 * 1024;           // 8 MB Max Buffer (Safe for old phones)
+const LOW_WATER = 4 * 1024 * 1024;            // 4 MB Min Buffer (Prevents pipeline starvation)
 
 let conn;
 let reconnectId = "";
@@ -31,7 +31,7 @@ function updateSpeedDisplay(bytesSent) {
   if (!speedDisplay) return;
   speedBytes += bytesSent;
   const now = performance.now();
-  if (now - speedLastUpdate > 1000) { // Limit CPU drawing overhead to once per second
+  if (now - speedLastUpdate > 1000) { 
     const mbs = (speedBytes / (now - speedLastUpdate) * 1e3 / (1024 * 1024));
     speedDisplay.textContent = `⚡ ${mbs.toFixed(1)} MB/s`;
     speedBytes = 0;
@@ -104,7 +104,6 @@ function setupConnection(connection) {
 
       const percent = Math.floor((file.received / file.size) * 100);
       
-      // Safety DOM Check: Throttling interface layout paints
       if (percent !== lastReceivedPercent) {
         updateProgress(data.fileId, percent);
         lastReceivedPercent = percent;
@@ -173,7 +172,7 @@ function updateProgress(id, percent) {
   }
 }
 
-// ANTI-OVERFLOW STREAM ENGINE
+// ANTI-OVERFLOW STREAM ENGINE (OPTIMIZED FOR MAXIMUM FLOW)
 async function waitForBuffer(dataChannel) {
   if (!dataChannel) return;
   while (dataChannel.bufferedAmount > HIGH_WATER) {
@@ -182,7 +181,7 @@ async function waitForBuffer(dataChannel) {
         dataChannel.bufferedAmountLowThreshold = LOW_WATER;
         dataChannel.addEventListener("bufferedamountlow", resolve, { once: true });
       } else {
-        setTimeout(resolve, 30);
+        setTimeout(resolve, 1); // Super fast 1ms polling fallback if event is not supported
       }
     });
   }
